@@ -1,6 +1,8 @@
 # oscc
 Offline SupportConfig Checker for SUSE Linux Enterprise systems
+
 Do you ever get exposed to supportconfig files from servers that do not have access to update repositories ? 
+
 Or do you find it difficult to relate to patch numbers of updates (not) installed in updates.txt of a supportconfig ?
 
 If so, how do you easily find out if there are pending updates available from SUSE to be installed on the system to make it up to date ?

@@ -1,0 +1,3214 @@
+#!/bin/bash
+#
+# Analyze if the system in a supportconfig archive is up to date
+# with the currently available versions of installed packages
+# 
+# ataschner@suse.com
+#
+# Known issues / TODO :
+# 
+#             - SOC 9 support is pending
+#             - SUSE Package Hub 15 SP2 support is pending
+#
+# Change log :
+# 2020-03-05  - Added support for 
+#             - SLES 15 SP2
+#             - SLES 15 is now LTSS
+#             - Ignore release-notes packages
+#             - Fixed bug in wiping of Package-Hub repos
+#             - Added support for 
+#               - SLES 15 and 15 SP1
+#               - SLES 12 SP4 and SP5
+#               - SOC 8
+#               - SUSE Package Hub
+#             - SLES 12 SP{2,3} and SLES 11 SP4 are now LTSS
+#             - Discontinued SLE 10 SP{1,2,3}
+#             - Packages with 'src' in their name were not included in 
+#               repodata cache
+#             - Minor bugfixes
+# 2017-09-12  - Added support for 
+#               - SLES 12 SP3
+#               - HA, SDK, WE 12 SP3
+#               - SLE-Module-HPC
+# 2017-06-29  - SLES 12 SP1 is now LTSS
+#             - Cleanup development-leftovers, that disabled repo refreshing
+# 2017-03-16  - Added support for SUSE Enterprise Storage 3 and 4 (v1 dropped)
+#             - Distinguish between legacy ($RCE) and SUSE repos when using -w
+#             - Dropped FCS repos to speed up processing. The historical minor 
+#               discrepancies between the ISO and Pool-repos are 
+#               insignificant.
+#             - Refresh of SOC repos fixed
+#             - Fix a bug in handling of version strings containing tilde (~)
+#             - Automatic addition of SLE-Module-Public-Cloud product if 
+#               cloud-init is installed, but the module extension is not
+# 2017-02-21  - Support for SUSE OpenStack Cloud 6 and 7
+# 2016-11-03  - Added support for 
+#               - SLES 12 SP2
+#               - HA, SDK, WE 12 SP2
+#               - SLE-Module-Certifications
+#               - SLES12-LTSS
+#               - Fixed bug in update_repo_cache that caused multiple 
+#                 "current" versions packages
+#               - Log installed products to output file
+# 2016-01-13  - Added support for 
+#               - SLES 11 SP3 LTSS
+#               - SLES 12 SP1
+#               - HA, SDK, WE 12 SP1
+# 2015-10-09  - Added support for 
+#               - SLES 11 SP4
+#               - HAE, SDK 11 SP4
+#               - SUSE Enterprise Storage 
+#               - SLE-Module-Toolchain
+#               - SLE-Module-Containers
+#             - Added -t option to specify temp directory
+#             - Only extract needed files from the supportconfig
+#             - Dropped *-Extension-Store repos, since they will never be
+#               populated
+#             - Fixed updating of repository cache 
+#             - SLE-WE now also gets updated
+#             - Fixed handling of supportconfig argument that includes path
+# 2014-11-14  - Since SUSE Customer Center uses token authentication it would
+#               require reprogramming of this tool in a different language to
+#               support repobase pointing to update.suse.com.
+#               Thus it is now only possible to point repobase to the repo
+#               structure on an SMT server.
+#             - Fixed setup of SLE-Module* repositories
+# 2014-10-29  - Added support for SLE-WE 12
+#             - Improved handling of multi-version packages
+# 2014-10-15  - Added support for SLE12 products :
+#               - SLES 12
+#               - SLE-HA 12
+#               - SLE-SDK 12
+#               - SLE-WE 12
+#               - SLE-Module-Adv-Systems-Management
+#               - SLE-Module-Legacy
+#               - SLE-Module-Public-Cloud
+#               - SLE-Module-Web-Scripting
+#             - Append timestamp to report file
+# 2014-03-19  - Version 0.1-0.11
+#             - Remove debug message in product detection
+# 2014-03-18  - Version 0.1-0.10
+#             - Putty range error fixed
+#             - Include LTSS repositories in show_supported
+#             - Fixed minor bugs in local repobase handling 
+#               and output when recreating repository
+# 2014-03-06  - Version 0.1-0.9
+#             - Write report file with findings
+# 2014-02-14  - Version 0.1-0.8
+#             - Added support for SLES11-SP2-LTSS
+#             - Check for missing database files
+#             - Fixed bugs in update_repo_cache
+# 2013-10-09  - Version 0.1-0.7
+#             - Added support for SLES10-SP1,2,3 including LTSS
+#             - Fixed handling of existing, but still empty repositories
+#             - Turned hacks for empty repositories into decent code
+#               This obsoletes hacks for SLE11-HAE-SP3-Updates,  
+#               *-Extension-Store and SLE11-SMT-SP3-Updates
+#             - Made build_repo_list more structured/maintainable
+# 2013-07-24  - Version 0.1-0.6
+#             - Fixed various bugs in update_repo_cache
+#             - Handling of packages that get removed from repositories
+#             - Now possible to list desired repositories and architectures
+#               in the config file. Mainly to avoid errors when trying to 
+#               update repositories, to which the user has no access.
+#             - Introduced -s option to display supported products,
+#               repositories and architectures
+# 2013-06-12  - Version 0.1-0.5
+#             - Support for SLE 11 SP3 ;
+#               - SLES and SDK are full-blown
+#               - SLE11-HAE-SP3-Updates and SLE11-SMT-SP3-Updates are still
+#                 empty which requires a temporary hack that will be removed 
+#                 once the repodata is valid. 
+#             - Replaced filelists.xml* files with dummies in the package in
+#               order to reduce the size of the RPM (by 99 %). 
+#             - Fixed validation of nfs and local repos
+#             - Removed sam dependency bitching since we do not rely on that
+#               any more
+# 2013-05-31  - Version 0.1-0.4
+#             - Credentials can now be set in /etc/opt/oscc/oscc.conf
+#             - Fixed handling of missing updates.txt
+# 2013-05-08  - Version 0.1-0.3
+#             - Support for LTSS for SLES11-SP1 added
+#             - Added -w maintenance mode switch to enable wiping and
+#               recreating of the cache for a selected repository in case it
+#               has gone inconsistent/out of sync with itself :).
+#             - Changed maintenance switch syntax
+#             - Optimized checking if repodata needs updating by checking if
+#               modification date of repodata is newer upstream before 
+#               downloading the data. For users without SMT and/or slow links.
+#             - Proactively wipe tempdir for leftovers
+#             - Fixed handling corner case of SLE pkg. from other product
+#             - Support for SMT 11 SP1
+# 2013-04-03  - Version 0.1-0.2
+#             - Support for SMT 11 SP2
+#             - Show $ARCH on -mu
+#             - Inform about sudo commands
+#             - Bug fixes
+# 2013-02-18  - First alpha version
+
+
+########################################################################
+#                                                                      #
+#                             Functions                                #
+#                                                                      #
+########################################################################
+
+usage_short () {
+# Display short information for this script  
+echo -e "\nUsage: $SCRIPTNAME [-h|--help] [-r <repobase-URL>] [-s] [-u|-w] [-p] [<supportconfig>]\n"
+echo -e "Checks if the RPM packages installed on system in the supportconfig are"
+echo -e "up to date, compared to what is available in the update repositories."
+echo -e "Versions of src and nosrc packages are not checked."
+}
+
+usage () {
+# Display the usage information for this script  
+usage_short
+echo -e "  -h, --help           Display this help message."
+echo -e "  -i                   Ignore unsupported products. Used if a SLE product,"
+echo -e "                       which is not (yet) supported by $SCRIPTNAME is installed."
+echo -e "                       May lead to failures in finding packages for the product"
+echo -e "                       in repositories and other unpredictable behavior."
+echo -e "  -l                   Do not consider updates available in accessible LTSS"
+echo -e "                       repositories."
+echo -e "  -r <URL>             Base URL for update repositories of your SMT or RMT server"
+echo -e "                       http://, nfs:// and / (local) is supported"
+echo -e "                       Also configurable in /etc/opt/oscc/oscc.conf"
+echo -e "  -s                   Display supported products, repositories and architectures"
+echo -e "  -t <path>            Use <path> as temporary/work directory instead of default"
+
+echo -e "\nExample : $SCRIPTNAME -r http://mysmt.mycompany.com/repo/ nts_blablebleu.tbz\n"
+}
+
+usage_maint () {
+# Display the usage information for this script  
+echo -e "Maintenance mode flags and arguments :"
+echo -e "  -u                   Updates the repository cache for all repositories"
+echo -e "                       Useful on systems with limited bandwidth to the update"
+echo -e "                       repositories"
+echo -e "Example : $SCRIPTNAME -u"
+echo -e "Updates the cache from the base URL configured in /etc/opt/oscc/oscc.conf\n"
+echo -e "  -w '<repo> <arch>'   Wipes and and recreates the repodata cache for the "
+echo -e "                       repository (including architecture) specified as argument".
+echo -e "                       Note the required quotes."
+echo -e "Example : $SCRIPTNAME -w 'SLES11-SP3-Updates sle-11-x86_64'\n"
+}
+
+cleanup () {
+# Clean up mount points, temp files and exit
+if [ $REPO_MOUNTED ] ; then 
+  if [ $NON_ROOT ] ; then 
+    if ! $(sudo -n umount > /dev/null 2>&1) ; then
+      echo "Password (maybe) needed for sudo umount"
+    fi
+    sudo umount $REPOBASE_MOUNTPOINT
+  else 
+    umount $REPOBASE_MOUNTPOINT
+   fi
+  rm -r $REPOBASE_MOUNTPOINT
+fi
+rm -rf $VAR_DIR* > /dev/null 2>&1
+exit $1
+}
+
+init_supported_tables () {
+# Read supported products, repositories and architectures into arrays
+# Architectures
+SUPPORTED_ARCHS="i586 x86_64"
+
+# Supported products
+S_PRODUCTS="\
+SLES15SP2 \
+MOD_BASESYSTEM15SP2 MOD_CLOUD15SP2 MOD_CONT15SP2 MOD_DESKTOP15SP2 \
+MOD_DEV_TOOLS15SP2 MOD_LEGACY15SP2 MOD_PYTHON215SP2 \
+MOD_SRV_APPS15SP2 MOD_WEBSCR15SP2 \
+SLES15SP1 \
+MOD_BASESYSTEM15SP1 MOD_CLOUD15SP1 MOD_CONT15SP1 MOD_DESKTOP15SP1 \
+MOD_DEV_TOOLS15SP1 MOD_LEGACY15SP1 MOD_PYTHON215SP1 \
+MOD_SRV_APPS15SP1 MOD_WEBSCR15SP1 \
+PKGHUB15SP1 \
+SLES15 \
+MOD_BASESYSTEM15 MOD_CONT15 MOD_DESKTOP15 MOD_DEV_TOOLS15 MOD_LEGACY15 \
+MOD_CLOUD15 MOD_SRV_APPS15 MOD_WEBSCR15 \
+PKGHUB15 \
+SLES12SP5 SLES12SP4 SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
+MOD_LEGACY12 MOD_SYSMGMT12 MOD_WEBSCR12 MOD_CLOUD12 MOD_CONT12 MOD_TOOLCH12 \
+MOD_CERT12 MOD_HPC12 \
+PKGHUB12SP2 PKGHUB12SP3 PKGHUB12SP4 PKGHUB12SP5 \
+SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1 \
+SMT11SP3 SMT11SP2 SMT11SP1 \
+SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 SDK11SP3 SDK11SP2 SDK11SP1 SDK10SP4 \
+SOC6 SOC7 SOC8 \
+HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 HAE11SP3 HAE11SP2 HAE11SP1 \
+SLES10SP4 \
+WE15 WE15SP1 WE15SP2 \
+WE12SP5 WE12SP4 WE12SP3 WE12SP2 WE12SP1 WE12 \
+SES3 SES4"
+read -a SUPPORTED_PRODUCTS <<< $S_PRODUCTS
+
+# Supported LTSS products
+L_PRODUCTS="SLES15 \
+SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
+SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1 \
+SLES10SP4"
+read -a LTSS_PRODUCTS <<< $L_PRODUCTS
+
+# Supported SLE 15 repos
+
+
+
+SLE15_REPOS="\
+SLE-Module-Basesystem15-SP2-Pool \
+SLE-Module-Basesystem15-SP2-Updates \
+SLE-Module-Containers15-SP2-Pool \
+SLE-Module-Containers15-SP2-Updates \
+SLE-Module-Desktop-Applications15-SP2-Pool \
+SLE-Module-Desktop-Applications15-SP2-Updates \
+SLE-Module-Development-Tools15-SP2-Pool \
+SLE-Module-Development-Tools15-SP2-Updates \
+SLE-Module-Legacy15-SP2-Pool \
+SLE-Module-Legacy15-SP2-Updates \
+SLE-Module-Packagehub-Subpackages15-SP2-Pool \
+SLE-Module-Packagehub-Subpackages15-SP2-Updates \
+SLE-Module-Public-Cloud15-SP2-Pool \
+SLE-Module-Public-Cloud15-SP2-Updates \
+SLE-Module-Python2-15-SP2-Pool \
+SLE-Module-Python2-15-SP2-Updates \
+SLE-Module-Server-Applications15-SP2-Pool \
+SLE-Module-Server-Applications15-SP2-Updates \
+SLE-Module-Web-Scripting15-SP2-Pool \
+SLE-Module-Web-Scripting15-SP2-Updates \
+SLE-Product-HA15-SP2-Pool \
+SLE-Product-HA15-SP2-Updates \
+SLE-Product-SLES15-SP2-Pool \
+SLE-Product-SLES15-SP2-Updates \
+SLE-Product-WE15-SP2-Pool \
+SLE-Product-WE15-SP2-Updates \
+SLE-Module-Basesystem15-SP1-Pool \
+SLE-Module-Basesystem15-SP1-Updates \
+SLE-Module-Containers15-SP1-Pool \
+SLE-Module-Containers15-SP1-Updates \
+SLE-Module-Desktop-Applications15-SP1-Pool \
+SLE-Module-Desktop-Applications15-SP1-Updates \
+SLE-Module-Development-Tools15-SP1-Pool \
+SLE-Module-Development-Tools15-SP1-Updates \
+SLE-Module-Legacy15-SP1-Pool \
+SLE-Module-Legacy15-SP1-Updates \
+SLE-Module-Packagehub-Subpackages15-SP1-Pool \
+SLE-Module-Packagehub-Subpackages15-SP1-Updates \
+SLE-Module-Public-Cloud15-SP1-Pool \
+SLE-Module-Public-Cloud15-SP1-Updates \
+SLE-Module-Python2-15-SP1-Pool \
+SLE-Module-Python2-15-SP1-Updates \
+SLE-Module-Server-Applications15-SP1-Pool \
+SLE-Module-Server-Applications15-SP1-Updates \
+SLE-Module-Web-Scripting15-SP1-Pool \
+SLE-Module-Web-Scripting15-SP1-Updates \
+SLE-Product-HA15-SP1-Pool \
+SLE-Product-HA15-SP1-Updates \
+SLE-Product-SLES15-SP1-Pool \
+SLE-Product-SLES15-SP1-Updates \
+SLE-Product-WE15-SP1-Pool \
+SLE-Product-WE15-SP1-Updates \
+SUSE-PackageHub-15-SP1-Backports-Pool \
+SUSE-PackageHub-15-SP1-Pool \
+SLE-Module-Basesystem15-Pool \
+SLE-Module-Basesystem15-Updates \
+SLE-Module-Containers15-Pool \
+SLE-Module-Containers15-Updates \
+SLE-Module-Desktop-Applications15-Pool \
+SLE-Module-Desktop-Applications15-Updates \
+SLE-Module-Development-Tools15-Pool \
+SLE-Module-Development-Tools15-Updates \
+SLE-Module-Legacy15-Pool \
+SLE-Module-Legacy15-Updates \
+SLE-Module-Packagehub-Subpackages15-Pool \
+SLE-Module-Packagehub-Subpackages15-Updates \
+SLE-Module-Public-Cloud15-Pool \
+SLE-Module-Public-Cloud15-Updates \
+SLE-Module-Server-Applications15-Pool \
+SLE-Module-Server-Applications15-Updates \
+SLE-Module-Web-Scripting15-Pool \
+SLE-Module-Web-Scripting15-Updates \
+SLE-Product-HA15-Pool \
+SLE-Product-HA15-Updates \
+SLE-Product-SLES15-Pool \
+SLE-Product-SLES15-Updates \
+SLE-Product-WE15-Pool \
+SLE-Product-WE15-Updates \
+SUSE-PackageHub-15-Backports-Pool \
+SUSE-PackageHub-15-Pool \
+"
+
+#SUSE-Package-Hub15-Pool \
+#SUSE-Package-Hub15-Updates"
+read -a SUPPORTED_SLE15_REPOS <<< $SLE15_REPOS
+
+# Supported SLE 12 repos
+SLE12_REPOS="\
+SLES12-SP5-Pool SLES12-SP5-Updates \
+SLES12-SP4-Pool SLES12-SP4-Updates \
+SLES12-SP3-Pool SLES12-SP3-Updates \
+SLES12-SP2-Pool SLES12-SP2-Updates \
+SLES12-SP1-Pool SLES12-SP1-Updates \
+SLES12-Pool SLES12-Updates \
+SLE-HA12-SP5-Pool SLE-HA12-SP5-Updates \
+SLE-HA12-SP4-Pool SLE-HA12-SP4-Updates \
+SLE-HA12-SP3-Pool SLE-HA12-SP3-Updates \
+SLE-HA12-SP2-Pool SLE-HA12-SP2-Updates \
+SLE-HA12-SP1-Pool SLE-HA12-SP1-Updates \
+SLE-HA12-Pool SLE-HA12-Updates \
+SLE-SDK12-SP5-Pool SLE-SDK12-SP5-Updates \
+SLE-SDK12-SP4-Pool SLE-SDK12-SP4-Updates \
+SLE-SDK12-SP3-Pool SLE-SDK12-SP3-Updates \
+SLE-SDK12-SP2-Pool SLE-SDK12-SP2-Updates \
+SLE-SDK12-SP1-Pool SLE-SDK12-SP1-Updates \
+SLE-SDK12-Pool SLE-SDK12-Updates \
+SLE-Module-Adv-Systems-Management12-Pool \
+SLE-Module-Adv-Systems-Management12-Updates \
+SLE-Module-Certifications12-Pool \
+SLE-Module-Certifications12-Updates \
+SLE-Module-Containers12-Pool SLE-Module-Containers12-Updates \
+SLE-Module-HPC12-Pool \
+SLE-Module-HPC12-Updates \
+SLE-Module-Legacy12-Pool SLE-Module-Legacy12-Updates \
+SLE-Module-Public-Cloud12-Pool SLE-Module-Public-Cloud12-Updates \
+SLE-Module-Toolchain12-Pool SLE-Module-Toolchain12-Updates \
+SLE-Module-Web-Scripting12-Pool SLE-Module-Web-Scripting12-Updates \
+SLE-WE12-SP5-Pool SLE-WE12-SP5-Updates \
+SLE-WE12-SP4-Pool SLE-WE12-SP4-Updates \
+SLE-WE12-SP3-Pool SLE-WE12-SP3-Updates \
+SLE-WE12-SP2-Pool SLE-WE12-SP2-Updates \
+SLE-WE12-SP1-Pool SLE-WE12-SP1-Updates \
+SLE-WE12-Pool SLE-WE12-Updates \
+SUSE-PackageHub-12-SP5-Pool SUSE-PackageHub-12-SP5-Standard-Pool \
+SUSE-PackageHub-12-SP4-Pool SUSE-PackageHub-12-SP4-Standard-Pool \
+SUSE-PackageHub-12-SP3-Pool SUSE-PackageHub-12-SP3-Standard-Pool \
+SUSE-PackageHub-12-SP2-Pool SUSE-PackageHub-12-SP2-Standard-Pool \
+"
+read -a SUPPORTED_SLE12_REPOS <<< $SLE12_REPOS
+
+# Supported SLE 11 repos
+SLE11_REPOS="SLE11-HAE-SP1-Pool SLE11-HAE-SP1-Updates \
+SLE11-HAE-SP2-Pool SLE11-HAE-SP2-Updates \
+SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates \
+SLE11-HAE-SP4-Pool SLE11-HAE-SP4-Updates \
+SLE11-SDK-SP1-Pool SLE11-SDK-SP1-Updates \
+SLE11-SDK-SP2-Core SLE11-SDK-SP2-Updates \
+SLE11-SDK-SP3-Pool SLE11-SDK-SP3-Updates \
+SLE11-SDK-SP4-Pool SLE11-SDK-SP4-Updates \
+SLE11-SMT-SP2-Pool SLE11-SMT-SP2-Updates \
+SLE11-SMT-SP3-Pool SLE11-SMT-SP3-Updates \
+SLES11-SP1-Pool SLES11-SP1-Updates \
+SLES11-SP2-Core SLES11-SP2-Updates \
+SLES11-SP3-Pool SLES11-SP3-Updates \
+SLES11-SP4-Pool SLES11-SP4-Updates"
+read -a SUPPORTED_SLE11_REPOS <<< $SLE11_REPOS
+
+# Supported SLE 10 repos
+SLE10_REPOS="\
+SLES10-SP4-Pool SLES10-SP4-Updates \
+SLE10-SDK-SP4-Pool SLE10-SDK-SP4-Updates"
+read -a SUPPORTED_SLE10_REPOS <<< $SLE10_REPOS
+
+# Supported Storage repos
+SES_REPOS="SUSE-Enterprise-Storage-4-Pool SUSE-Enterprise-Storage-4-Updates \
+SUSE-Enterprise-Storage-3-Pool SUSE-Enterprise-Storage-3-Updates"
+read -a SUPPORTED_SES_REPOS <<< $SES_REPOS
+
+# Supported Cloud repos
+SOC_REPOS="SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates \
+SUSE-OpenStack-Cloud-7-Pool SUSE-OpenStack-Cloud-7-Updates \
+SUSE-OpenStack-Cloud-8-Pool SUSE-OpenStack-Cloud-8-Updates"
+read -a SUPPORTED_SOC_REPOS <<< $SOC_REPOS
+
+# Supported Cloud versions
+SOC_VERSIONS="6 7 8"
+
+# Supported LTSS repositories
+SCC_LTS_REPOS="SLES15-LTSS-Updates \
+SLES12-SP3-LTSS-Updates \
+SLES12-SP2-LTSS-Updates \
+SLES12-SP1-LTSS-Updates \
+SLES12-LTSS-Updates"
+RCE_LTS_REPOS="SLES11-SP4-LTSS-Updates \
+SLES11-SP3-LTSS-Updates \
+SLES11-SP2-LTSS-Updates \
+SLES11-SP1-LTSS-Updates \
+SLES10-SP4-LTSS-Updates"
+LTS_REPOS="$SCC_LTS_REPOS $RCE_LTS_REPOS"
+read -a LTSS_REPOS <<< $LTS_REPOS
+
+# Repos in SUSE directory structure 
+SCC_REPOS="$SCC_LTS_REPOS $SLE15_REPOS $SLE12_REPOS $SOC_REPOS $SES_REPOS"
+
+# Repos in legacy $RCE directory structure 
+RCE_REPOS="$RCE_LTS_REPOS $SLE10_REPOS $SLE11_REPOS"
+
+# Supported SLE 15 architectures
+SLE15_ARCHS="x86_64"
+read -a SUPPORTED_SLE15_ARCHS <<< $SLE15_ARCHS
+
+# Supported SLE 12 architectures
+SLE12_ARCHS="x86_64"
+read -a SUPPORTED_SLE12_ARCHS <<< $SLE12_ARCHS
+
+# Supported Cloud architectures
+SOC_ARCHS="x86_64"
+read -a SUPPORTED_SOC_ARCHS <<< $SOC_ARCHS
+
+# Supported Storage 12 architectures
+SES_ARCHS="x86_64"
+read -a SUPPORTED_SES_ARCHS <<< $SES_ARCHS
+
+# Supported SLE 11 architectures
+SLE11_ARCHS="sle-11-i586 sle-11-x86_64"
+read -a SUPPORTED_SLE11_ARCHS <<< $SLE11_ARCHS
+
+# Supported SLE 10 architectures
+SLE10_ARCHS="sles-10-i586 sles-10-x86_64"
+read -a SUPPORTED_SLE10_ARCHS <<< $SLE10_ARCHS
+}
+
+show_supported () {
+# Show which products the tool currently supports
+init_supported_tables
+echo -e "Listing of products, repositories and architectures supported \
+by $SCRIPTNAME\n"
+echo "Products :"
+dump_array SUPPORTED_PRODUCTS
+echo
+echo "Supported architectures :"
+echo $SUPPORTED_ARCHS
+echo
+echo "SLE 15 repositories :"
+dump_array SUPPORTED_SLE15_REPOS
+echo
+echo "SLE 12 repositories :"
+dump_array SUPPORTED_SLE12_REPOS
+echo
+echo "SLE 11 repositories :"
+dump_array SUPPORTED_SLE11_REPOS
+echo
+echo "SLE 10 repositories :"
+dump_array SUPPORTED_SLE10_REPOS
+echo
+echo "LTSS repositories :"
+dump_array LTSS_REPOS
+echo
+echo "SUSE Enterprise Storage repositories:"
+dump_array SUPPORTED_SES_REPOS
+echo
+echo "SUSE OpenStack Cloud repositories :"
+dump_array SUPPORTED_SOC_REPOS
+}
+
+validate_enabled_array () {
+# Validate if the repository or architecture ($1) $2 exists
+# in the array passed as $3
+VALIDATION_SUBJECT=$1
+eval "CHALLENGER=(\$2)"
+eval "SUPPORTED_LIST=(\$3)"
+
+for ((IX=0; IX < $(eval echo \${#$CHALLENGER[*]}) ; IX++)) ; do
+  if ! $(eval echo \${$SUPPORTED_LIST[*]} \
+    | grep -q $(eval echo \${$CHALLENGER[$IX]})) ; then
+    echo "Unsupported $VALIDATION_SUBJECT :" $(eval echo \${$CHALLENGER[$IX]})
+    echo "Invoke $SCRIPTNAME with -s option to get a list of what is supported"
+    echo "and fix your configuration file."
+    cleanup 1
+  fi
+done
+return 0
+}
+
+initialize () {
+init_supported_tables
+CURLCMD="curl"
+CONFFILE=/etc/opt/oscc/oscc.conf
+THIS_TOOL_PKG_NAME=oscc
+NCC_REPOBASE="https://nu.novell.com/repo/"
+SCC_REPOBASE="https://updates.suse.com/"
+DBDIR=/opt/oscc/
+FILELISTS_XML=filelists.xml
+FILELISTS_XML_ARCHV=$FILELISTS_XML".gz"
+ENVFILE=basic-environment.txt
+HWFILE=hardware.txt
+UPDATESFILE=updates.txt
+PKGS_TO_UPDATE=0
+NO_INFO_LINES=0
+NO_OUTDATED_MSGS=0
+NO_ERR_MSGS=0
+VAR_DIR=/var/opt/oscc/
+SPACES="                                                                     "
+unset INFO_MSGS OUTDATED_MSGS ERR_MSGS REPO_MOUNTED WRONG_SUPPORTUTILS_LINE \
+INFORMED_CREATING_CACHE THIS_IS_SLE12 BASE_PRODUCT_VER REPO_URL MULTIVER_PKGS
+if ! [ $SCONFIG ] && ! [ $MAINT_MODE ] ; then
+  echo "No supportconfig archive specified"
+  usage
+  cleanup 1
+fi
+if ! [ $MAINT_MODE ] ; then
+  echo "Analyzing $SCONFIG."
+fi
+
+# Read and validate options from config file
+if [ -r $CONFFILE ]; then
+  # Source config file
+  . $CONFFILE
+  if ! [ $REPOBASE ] ; then
+    if [ $REPOSITORY_URL ]; then
+      REPOBASE="$REPOSITORY_URL"
+    else
+      echo "Error :"
+      echo "$CONFFILE does not contain REPOSITORY_URL"
+      echo "Please ensure it is set"
+      cleanup 2
+    fi 
+  fi
+  # SLE 15
+  if [[ $SLE15_REPOS ]] ; then
+    # Validate if the user set repos are supported
+    read -a ENABLED_SLE15_REPOS <<< $SLE15_REPOS
+    if validate_enabled_array repository ENABLED_SLE15_REPOS \
+SUPPORTED_SLE15REPOS ; then
+      SLE15_REPOS=(${ENABLED_SLE15_REPOS[@]})
+    fi
+  else
+    SLE15_REPOS=(${SUPPORTED_SLE15_REPOS[@]})
+  fi
+  if [[ $SLE15_ARCHS ]] ; then
+    # Validate if the user set architectures are supported
+    read -a ENABLED_SLE15_ARCHS <<< $SLE15_ARCHS
+    if validate_enabled_array architecture ENABLED_SLE15_ARCHS \
+SUPPORTED_SLE15_ARCHS ; then
+      SLE15_ARCHS=(${ENABLED_SLE15_ARCHS[@]})
+    fi
+  else
+    SLE15_ARCHS=(${SUPPORTED_SLE15_ARCHS[@]})
+  fi
+  # SLE 12
+  if [[ $SLE12_REPOS ]] ; then
+    # Validate if the user set repos are supported
+    read -a ENABLED_SLE12_REPOS <<< $SLE12_REPOS
+    if validate_enabled_array repository ENABLED_SLE12_REPOS \
+SUPPORTED_SLE12_REPOS ; then
+      SLE12_REPOS=(${ENABLED_SLE12_REPOS[@]})
+    fi
+  else
+    SLE12_REPOS=(${SUPPORTED_SLE12_REPOS[@]})
+  fi
+  if [[ $SLE12_ARCHS ]] ; then
+    # Validate if the user set architectures are supported
+    read -a ENABLED_SLE12_ARCHS <<< $SLE12_ARCHS
+    if validate_enabled_array architecture ENABLED_SLE12_ARCHS \
+SUPPORTED_SLE12_ARCHS ; then
+      SLE12_ARCHS=(${ENABLED_SLE12_ARCHS[@]})
+    fi
+  else
+    SLE12_ARCHS=(${SUPPORTED_SLE12_ARCHS[@]})
+  fi
+  # SOC
+  if [[ $SOC_REPOS ]] ; then
+    # Validate if the user set repos are supported
+    read -a ENABLED_SOC_REPOS <<< $SOC_REPOS
+    if validate_enabled_array repository ENABLED_SOC_REPOS \
+SUPPORTED_SOC_REPOS ; then
+      SOC_REPOS=(${ENABLED_SOC_REPOS[@]})
+    fi
+  else
+    SOC_REPOS=(${SUPPORTED_SOC_REPOS[@]})
+  fi
+  if [[ $SOC_ARCHS ]] ; then
+    # Validate if the user set architectures are supported
+    read -a ENABLED_SOC_ARCHS <<< $SOC_ARCHS
+    if validate_enabled_array architecture ENABLED_SOC_ARCHS \
+SUPPORTED_SOC_ARCHS ; then
+      SOC_ARCHS=(${ENABLED_SOC_ARCHS[@]})
+    fi
+  else
+    SOC_ARCHS=(${SUPPORTED_SOC_ARCHS[@]})
+  fi
+  # SES
+  if [[ $SES_REPOS ]] ; then
+    # Validate if the user set repos are supported
+    read -a ENABLED_SES_REPOS <<< $SES_REPOS
+    if validate_enabled_array repository ENABLED_SES_REPOS \
+SUPPORTED_SES_REPOS ; then
+      SES_REPOS=(${ENABLED_SES_REPOS[@]})
+    fi
+  else
+    SES_REPOS=(${SUPPORTED_SES_REPOS[@]})
+  fi
+  if [[ $SES_ARCHS ]] ; then
+    # Validate if the user set architectures are supported
+    read -a ENABLED_SES_ARCHS <<< $SES_ARCHS
+    if validate_enabled_array architecture ENABLED_SES_ARCHS \
+SUPPORTED_SES_ARCHS ; then
+      SES_ARCHS=(${ENABLED_SES_ARCHS[@]})
+    fi
+  else
+    SES_ARCHS=(${SUPPORTED_SES_ARCHS[@]})
+  fi
+  # SLE 11
+  if [[ $SLE11_REPOS ]] ; then
+    # Validate if the user set repos are supported
+    read -a ENABLED_SLE11_REPOS <<< $SLE11_REPOS
+    if validate_enabled_array repository ENABLED_SLE11_REPOS \
+SUPPORTED_SLE11_REPOS ; then
+      SLE11_REPOS=(${ENABLED_SLE11_REPOS[@]})
+    fi
+  else
+    SLE11_REPOS=(${SUPPORTED_SLE11_REPOS[@]})
+  fi
+  if [[ $SLE11_ARCHS ]] ; then
+    # Validate if the user set architectures are supported
+    read -a ENABLED_SLE11_ARCHS <<< $SLE11_ARCHS
+    if validate_enabled_array architecture ENABLED_SLE11_ARCHS \
+SUPPORTED_SLE11_ARCHS ; then
+      SLE11_ARCHS=(${ENABLED_SLE11_ARCHS[@]})
+    fi
+  else
+    SLE11_ARCHS=(${SUPPORTED_SLE11_ARCHS[@]})
+  fi
+  # SLE 10
+  if [[ $SLE10_REPOS ]] ; then
+    if echo $SLE10_REPOS|grep -q "none" ; then
+      unset SLE10_REPOS
+    else
+      # Validate if the user set repos are supported
+      read -a ENABLED_SLE10_REPOS <<< $SLE10_REPOS
+      if validate_enabled_array repository ENABLED_SLE10_REPOS \
+SUPPORTED_SLE10_REPOS ; then
+        SLE10_REPOS=(${ENABLED_SLE10_REPOS[@]})
+      fi
+    fi
+  else
+    SLE10_REPOS=(${SUPPORTED_SLE10_REPOS[@]})
+  fi
+  if [[ $SLE10_ARCHS ]] ; then
+    # Validate if the user set architectures are supported
+    read -a ENABLED_SLE10_ARCHS <<< $SLE10_ARCHS
+    if validate_enabled_array architecture ENABLED_SLE10_ARCHS \
+SUPPORTED_SLE10_ARCHS ; then
+      SLE10_ARCHS=(${ENABLED_SLE10_ARCHS[@]})
+    fi
+  else
+    SLE10_ARCHS=(${SUPPORTED_SLE10_ARCHS[@]})
+  fi
+else
+  echo "Error :"
+  echo "$CONFFILE has been removed"
+  echo "Please reinstall it"
+  exit 2
+  cleanup 2
+fi
+if $(echo "$REPOBASE" | grep -q "$SCC_REPOBASE") ||
+   $(echo "$REPOBASE" | grep -q "$NCC_REPOBASE") ; then
+  echo -e "$REPOBASE is currently not supported as repobase (see changelog of RPM)"
+  echo -e "Please point repobase to the repo structure of your SMT or RMT server\n"
+  echo -e "Exiting.."
+  cleanup 1
+fi
+
+# User specified customer tempdir
+DIR_CALLED_FROM=`pwd`
+if [[ $USER_TEMPDIR ]] ; then
+  if [[ $(echo $USER_TEMPDIR|cut -c1) != '/' ]] ; then
+    USER_TEMPDIR=$DIR_CALLED_FROM"/"$USER_TEMPDIR
+  fi
+  # Ensure we have the trailing slash
+  [[ $USER_TEMPDIR != */ ]] && USER_TEMPDIR="$USER_TEMPDIR"/
+  if test -e $USER_TEMPDIR ; then
+    if test -w $USER_TEMPDIR ; then
+      VAR_DIR=$USER_TEMPDIR
+    else
+      echo "Missing permissions on the specified tempdir $USER_TEMPDIR. Exiting"
+      cleanup 1
+    fi
+  else
+    if mkdir -p $USER_TEMPDIR > /dev/null 2>&1 ; then
+      VAR_DIR=$USER_TEMPDIR
+    else
+      echo "Missing permissions on the specified tempdir $USER_TEMPDIR. Exiting"
+      cleanup 1
+    fi
+  fi
+  echo "Working directory is $VAR_DIR"
+fi
+echo "Using repositories in $REPOBASE"
+
+# Cleanup our tempdir from previous runs
+# In case user has aborted the execution of this script, 
+# tempfiles can be floating around and occupy disk space.
+rm -rfv $VAR_DIR* > /dev/null 2>&1
+
+# Setup work files/dirs
+TS=`date +%Y%m%d-%H%M`
+if ! [ -z $SCONFIG ] ; then
+  SCONFIG_FN=$(basename $SCONFIG)
+fi
+REPORTFILE=`echo $DIR_CALLED_FROM"/oscc-"$SCONFIG_FN"__"$TS|sed 's/\.tbz//g'`
+TEMPDIR1=`mktemp -d -p $VAR_DIR`
+cd $TEMPDIR1
+NO_TEMPFILES=7
+for i in `seq $NO_TEMPFILES`; do
+  eval TEMPFILE$i=$(mktemp -p $VAR_DIR)
+done
+}
+
+validate_archive () {
+# Test and unpack supportconfig archive
+cd $DIR_CALLED_FROM
+if ! `cp $SCONFIG $TEMPDIR1 2>/dev/null` ; then
+  echo "Error :"
+  echo "Can't read supportconfig file $SCONFIG"
+  cleanup 1
+fi
+# Verify md5sum of supportconfig archive if existing
+if [ -r $SCONFIG.md5 ] ; then
+  SUPPLIED_MD5=`cat $SCONFIG.md5`
+  if [[ $SUPPLIED_MD5 != `md5sum $SCONFIG |cut -d' ' -f1` ]] ; then
+    echo "md5sum mismatch between $SCONFIG.md5 and $SCONFIG"
+    cleanup 1
+  fi
+fi
+cd $TEMPDIR1
+if echo `file $SCONFIG`|grep -qi bzip2 ; then
+  TAR_UNPACK_CMD="tar -jxf"
+  TAR_TOC_CMD="tar -jtf"
+elif echo `file $SCONFIG`|grep -qi XZ ; then
+  TAR_UNPACK_CMD="tar -Jxf"
+  TAR_TOC_CMD="tar -Jtf"
+else
+  echo "$SCONFIG does not look like a supportconfig tarball"
+  cleanup 1
+fi
+for i in `$TAR_TOC_CMD $SCONFIG | egrep 'rpm.txt|updates.txt|basic-environment.txt|hardware.txt' \
+  |grep -v zypper`; do 
+  if ! `$TAR_UNPACK_CMD $SCONFIG $i 2>/dev/null 2>&1` ; then
+    echo "Unpacking of supportconfig $SCONFIG failed"
+    cleanup 1
+  fi
+done
+cd `$TAR_TOC_CMD $SCONFIG |head -1|cut -f1 -d'/'`
+}
+
+push_output () {
+# Push message onto an output "stack" depending on type ID
+# $1 is the type ID of the message
+# $2 is the message itself
+# ID  Type of output
+# 0		Informational
+# 1   Update candidate information
+# 2		Error condition
+if [ $1 -eq 0 ] ; then
+  INFO_MSGS[$NO_INFO_MSGS]="$2"
+  ((NO_INFO_MSGS++))
+elif [ $1 -eq 1 ] ; then
+  OUTDATED_MSGS[$NO_OUTDATED_MSGS]="$2"
+  ((NO_OUTDATED_MSGS++))
+elif [ $1 -eq 2 ] ; then
+  ERR_MSGS[$NO_ERR_MSGS]="$2"
+  ((NO_ERR_MSGS++))
+fi
+}
+
+write_output () {
+# Write the different types of stacked messages from their arrays
+echo "Supportconfig $SCONFIG analyzed at `date`" > $REPORTFILE
+echo
+if [[ $NO_OUTDATED_MSGS -eq 0 ]] ; then
+  # No msgs about outdated packages exist
+  push_output "0" "####################"
+  push_output "0" "System is up to date"
+  push_output "0" "####################"
+fi
+if [[ ${#INFO_MSGS[*]} -gt 0 ]] ; then
+  # Show informational messages
+  echo "Informational :"
+  for ((IX=0; IX < ${#INFO_MSGS[*]} ; IX++)) ; do
+    echo "${INFO_MSGS[$IX]}"|tee -a $REPORTFILE
+  done
+fi
+if [[ ${#OUTDATED_MSGS[*]} -gt 0 ]] ; then
+  rm $TEMPFILE1
+  touch $TEMPFILE1
+  echo "Update candidates for $HOSTNAME as of `date` :"|tee -a $REPORTFILE
+  for ((IX=${#OUTDATED_MSGS[*]} ; IX>=0 ; IX--)) ; do  
+  # Pipe all messages about outdated packages into workfile
+    echo ${OUTDATED_MSGS[$IX]} >> $TEMPFILE1
+  done
+  echo "================== ================== ================== \
+==================" >> $TEMPFILE1
+  echo "Package Installed Current Repository"  >> $TEMPFILE1
+  # Make it look nice
+  column -t $TEMPFILE1|tac|tee -a $REPORTFILE
+  echo -e "\n$PKGS_TO_UPDATE out of $NO_OF_INSTALLED_PKGS packages \
+on $HOSTNAME are not up to date"|tee -a $REPORTFILE
+fi
+if [[ ${#ERR_MSGS[*]} -gt 0 ]] ; then
+  # Show error messages etc.
+  echo -e "\nWarnings and errors :"
+  for ((IX=0; IX < ${#ERR_MSGS[*]} ; IX++)) ; do
+    echo "${ERR_MSGS[$IX]}"|tee -a $REPORTFILE
+  done
+fi
+echo -e "\nReport file : $REPORTFILE\n"
+}
+
+get_sp_string () {
+if [[ $1 -eq 0 ]] ; then
+  # If servicepack # zero - drop the #
+  unset SP_STRING
+else
+  # Otherwise prepend it with SP
+  SP_STRING="SP"$1
+fi
+}
+
+get_product () {
+# Set the standardized product name
+if `echo $1|grep -qi sles` ; then
+  PRODUCT=SLES
+elif `echo $1|grep -qi sled` ; then
+  PRODUCT=SLED
+elif `echo $1|grep -qi sdk` ; then
+  PRODUCT=SDK
+elif `echo $1|grep -qi hae`; then
+  PRODUCT=HAE
+elif `echo $1|grep -qi sle-ha`; then
+  PRODUCT=HA
+elif `echo $1|grep -qi sle-module-adv-systems-management`; then
+  PRODUCT=MOD_SYSMGMT
+elif `echo $1|grep -qi sle-module-basesystem`; then
+  PRODUCT=MOD_BASESYSTEM
+elif `echo $1|grep -qi sle-module-certifications`; then
+  PRODUCT=MOD_CERT
+elif `echo $1|grep -qi sle-module-container`; then
+  PRODUCT=MOD_CONT
+elif `echo $1|grep -qi sle-module-desktop-applications`; then
+  PRODUCT=MOD_DESKTOP
+elif `echo $1|grep -qi sle-module-development-tools`; then
+  PRODUCT=MOD_DEV_TOOLS
+elif `echo $1|grep -qi sle-module-hpc`; then
+  PRODUCT=MOD_HPC
+elif `echo $1|grep -qi sle-module-legacy`; then
+  PRODUCT=MOD_LEGACY
+elif `echo $1|grep -qi sle-module-public-cloud`; then
+  PRODUCT=MOD_CLOUD
+elif `echo $1|grep -qi sle-module-python2`; then
+  PRODUCT=MOD_PYTHON2
+elif `echo $1|grep -qi sle-module-server-applications`; then
+  PRODUCT=MOD_SRV_APPS
+elif `echo $1|grep -qi sle-module-toolchain`; then
+  PRODUCT=MOD_TOOLCH
+elif `echo $1|grep -qi sle-module-web-scripting`; then
+  PRODUCT=MOD_WEBSCR
+elif `echo $1|grep -qi sle-we` ; then
+  PRODUCT=WE
+elif `echo $1|grep -qi smt` ; then
+  PRODUCT=SMT
+elif `echo $1|grep -qi ses` ; then
+  PRODUCT=SES
+elif `echo $1|grep -qEi 'suse-openstack-cloud|ses'` ; then
+  PRODUCT=SOC
+elif `echo $1|grep -qEi 'packagehub'` ; then
+  PRODUCT=PKGHUB
+else
+  PRODUCT=$1
+fi
+}
+
+unsupported () {
+# Throw error about unsupported product/repo/arch and exit
+echo "Error :"
+echo "$* is not supported by $SCRIPTNAME"   
+if [ $IGNORE_UNSUPPORTED ] ; then
+  echo "-i specified, forcing check despite unsupported product."
+  echo "Expect reports about '"'unfindable'"' packages and"
+  echo "installed packages being newer than what is available"
+  echo "in repositories..."
+else
+  cleanup 1
+fi
+}
+
+supportability_check () {
+# Check if installed products are supported by this tool 
+for ((IX=0; IX < ${#SUPPORTED_PRODUCTS[*]}; IX++)) ; do
+  if [[ $1 = ${SUPPORTED_PRODUCTS[$IX]} ]] ; then
+    return 0
+  fi
+done
+return 1
+}
+
+add_product () {
+# Add a product to the list of what is installed on the host
+PRODUCT_SUP_NAME=`echo $1|cut -d'#' -f6`
+# Check if the product is supported by the tool
+if $(supportability_check $PRODUCT_SUP_NAME) ; then
+  PRODUCTS[$PRODUCTS_IX]="$1"
+  ((PRODUCTS_IX++))
+else
+  PRODUCT_LONG=`echo $1|cut -d'#' -f5`
+  PRODUCT_SP=`echo $1|cut -d'#' -f3`
+  if ! [[ `echo $PRODUCT_LONG|grep SP` ]] && [ $PRODUCT_SP -gt 0 ] ; then
+    PRODUCT_LONG=$PRODUCT_LONG" SP"$PRODUCT_SP
+  fi
+  unsupported "$PRODUCT_LONG"
+fi
+}
+
+updatesfile_useless () {
+echo -e "\nWarning :"
+echo "Either updates.txt is not found in the supportconfig"
+echo "or it does not contain the expected information."
+echo "Only the base product is examined."
+echo "Expect reports about '"'unfindable'"' packages and"
+echo "installed packages being newer than what is available"
+echo "in repositories."
+}
+
+this_product_is_not_processed () {
+unset PRODUCT_IS_PROCESSED
+for i in $PRODUCTS_SEEN ; do
+  if [[ $i == $PRODUCT ]] ; then
+    PRODUCT_IS_PROCESSED=y
+  fi
+done
+if [ $PRODUCT_IS_PROCESSED ] ; then
+  return 1
+else
+  return 0
+fi
+}
+
+detect_products () {
+# Find out which products and their versions are installed
+PRODUCTS_IX=0
+UNAME=`grep -A1 '\/bin\/uname' $ENVFILE|tail -1`
+HOSTNAME=`grep -A1 '\/bin\/uname' $ENVFILE|tail -1|cut -d' ' -f2`
+# Detect architecture
+ARCHSTR=`grep -m1 '^Arch' $HWFILE |cut -d':' -f2|tr -d ' '`
+if [ -z $ARCHSTR ] ; then 
+  # hardware.txt does not contain output of lscpu
+  ARCHSTR=`echo $UNAME | cut -d')' -f2`
+fi
+if [[ `echo $ARCHSTR | grep 'x86_64'` ]] ; then
+      BASE_PRODUCT_ARCH=x86_64
+  elif [[ `echo $ARCHSTR | grep 'i686'` ]] ; then
+      BASE_PRODUCT_ARCH=i586
+  elif [[ `echo $ARCHSTR | grep 'aarch64'` ]] ; then
+      BASE_PRODUCT_ARCH=aarch
+  else
+      BASE_PRODUCT_ARCH='not-x86_64-i586-aarch'
+  fi
+if grep -q "os-release" $ENVFILE ; then 
+  RELEASE_FILE="os"
+  sed -n '/\/etc\/os-release/,/^$/p' $ENVFILE > $TEMPFILE1
+elif grep -q "SuSE-release" $ENVFILE ; then 
+  RELEASE_FILE="SuSE"
+  sed -n '/\/etc\/SuSE-release/,/^$/p' $ENVFILE > $TEMPFILE1
+fi
+case $RELEASE_FILE in
+  SuSE ) 
+    BASE_PRODUCT_VER=`grep -m1 'VERSION' $TEMPFILE1 2>/dev/null |cut -d'=' -f2 \
+      |tr -d ' '|tr -d '\"'`
+    if grep -q PATCHLEVEL $TEMPFILE1 ; then
+      BASE_PRODUCT_SP=`grep 'PATCHLEVEL' $TEMPFILE1 2>/dev/null |cut -d'=' -f2 \
+        |tr -d ' '`
+    else
+      BASE_PRODUCT_SP=0
+    fi
+    # Here we have the version included in the string, so only the SP is needed
+    if [ $BASE_PRODUCT_SP -gt 0 ] ; then 
+      BASE_PRODUCT_LONG=`grep 'SUSE Linux' $TEMPFILE1 2>/dev/null |cut -d'(' -f1 \
+        |sed 's/[ \t]*$//'`" SP$BASE_PRODUCT_SP"
+    else
+      BASE_PRODUCT_LONG=`grep 'SUSE Linux' $TEMPFILE1 2>/dev/null |cut -d'(' -f1 \
+        |sed 's/[ \t]*$//'`
+    fi
+    ;;
+  os )
+    BASE_PRODUCT_VER=`grep -m1 'VERSION_ID' $TEMPFILE1 2>/dev/null |cut -d'"' -f2 \
+      |tr -d ' '|tr -d '\"'|cut -d'.' -f1`
+    if ! [ -z `grep -m1 'VERSION_ID' $TEMPFILE1 2>/dev/null |grep '\.' ` ] ; then
+      BASE_PRODUCT_SP=`grep -m1 'VERSION_ID' $TEMPFILE1 2>/dev/null |cut -d'"' -f2 \
+      |tr -d ' '|tr -d '\"'|cut -d'.' -f2`
+    else
+      BASE_PRODUCT_SP=0
+    fi
+    if [ $BASE_PRODUCT_SP -gt 0 ] ; then 
+      BASE_PRODUCT_LONG="SUSE Linux Enterprise Server $BASE_PRODUCT_VER SP$BASE_PRODUCT_SP"
+    else
+      BASE_PRODUCT_LONG="SUSE Linux Enterprise Server $BASE_PRODUCT_VER"
+    fi
+esac
+if [[ `echo $BASE_PRODUCT_LONG|grep Server 2>/dev/null` ]]; then
+  BASE_PRODUCT=SLES
+else 
+  echo "Unsupported base product in /etc/SuSE-release or /etc/os-release (or file is corrupt)."
+  echo "Exiting"
+  cleanup 1
+fi
+# If service pack > 0 add it to the product string
+get_sp_string $BASE_PRODUCT_SP
+# Add product to array of installed products
+add_product "$BASE_PRODUCT"#"$BASE_PRODUCT_VER"#"$BASE_PRODUCT_SP"#"\
+$BASE_PRODUCT_ARCH"#"$BASE_PRODUCT_LONG"#"$BASE_PRODUCT\
+$BASE_PRODUCT_VER$SP_STRING"
+PRODUCTS_SEEN=$BASE_PRODUCT
+# Try and detect add-on products from $UPDATESFILE
+if [ -f $UPDATESFILE ] ; then
+  if [ $BASE_PRODUCT_VER -eq 10 ] ; then
+    if grep -q 'zypp-query-pool products' $UPDATESFILE ; then
+      # SLE 10 - no xml
+      sed -n '/zypp-query-pool products/,/\]===/p' $UPDATESFILE \
+        |grep product|\
+      grep -Ev 'igration|products'| grep '^i'> $TEMPFILE1  
+      # Did we find any product records ?
+      if ! [[ -s $TEMPFILE1 ]] ; then
+        updatesfile_useless
+      fi
+      while read PRODUCT_LINE ; do
+        PRODUCT_SHORT=`echo $PRODUCT_LINE|cut -d'|' -f3`
+        # Set the standardized product name
+        get_product $PRODUCT_SHORT
+        this_product_is_not_processed $PRODUCT
+        if ! `echo $PRODUCTS_SEEN|grep -q $PRODUCT` ; then
+          PRODUCTS_SEEN=$PRODUCTS_SEEN" "$PRODUCT
+          PRODUCT_VER=`echo $PRODUCT_LINE|cut -d'|' -f4|cut -d'.' -f1`
+          if [[ `echo $PRODUCT_LINE|cut -d'|' -f4|grep '\.'` ]] ; then
+            PRODUCT_SP=`echo $PRODUCT_LINE|cut -d'|' -f4|cut -d'.' -f2 \
+              |cut -d'-' -f1`
+          else 
+            PRODUCT_SP=0
+          fi
+          PRODUCT_ARCH=`echo $PRODUCT_LINE|cut -d'|' -f5`
+          PRODUCT_LONG=`echo $PRODUCT_LINE|cut -d'|' -f10`
+          # If service pack > 0 add it to the product string
+          get_sp_string $PRODUCT_SP
+          # Add product to array of installed products
+          add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
+"#"$PRODUCT_LONG"#"$PRODUCT$PRODUCT_VER$SP_STRING"
+        fi
+      done < "$TEMPFILE1"
+    fi
+  elif [ $BASE_PRODUCT_VER -ge 11 ] ; then
+    if grep -q 'zypper --non-interactive --no-gpg-checks --xml products' \
+$UPDATESFILE ; then
+      # SLE 11 - xml
+      if [ $BASE_PRODUCT_VER -eq 11 ] ; then
+        sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
+$UPDATESFILE| grep '^<product name' \
+|grep -v igration |grep 'installed="'1'"' |sort> $TEMPFILE1
+      elif [ $BASE_PRODUCT_VER -ge 12 ] ; then
+        sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
+$UPDATESFILE| grep '^<product name' \
+|grep -v igration |grep 'installed="'true'"' |sort> $TEMPFILE1
+      fi
+      # Did we find any product records ?
+      if ! [[ -s $TEMPFILE1 ]] ; then
+        updatesfile_useless
+      fi
+      while read PRODUCT_LINE ; do
+        unset PRODUCT_SP PRODUCT_SP_TMP
+        PRODUCT_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%name=*}"} \
+|cut -d'"' -f2`
+        # Set the standardized product name
+        get_product $PRODUCT_TMP
+        if this_product_is_not_processed ; then
+          PRODUCTS_SEEN=$PRODUCTS_SEEN" "$PRODUCT
+          if [ $PRODUCT = 'WE' ] ; then
+            PRODUCT_LONG="SUSE Linux Enterprise Workstation Extension"
+          elif [ $PRODUCT = 'SDK' ] ; then
+            PRODUCT_LONG="SUSE Linux Enterprise Software Development Kit"
+          elif [ $PRODUCT = 'HA' ] ; then
+            PRODUCT_LONG="SUSE Linux Enterprise High Availability Extension"
+          elif [ $PRODUCT = 'PKGHUB' ] ; then
+            PRODUCT_LONG="SUSE Package Hub"
+          else
+            PRODUCT_LONG=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%summary=*}"} \
+|cut -d'"' -f2`
+          fi
+          PRODUCT_VER=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
+|cut -d'"' -f2|cut -d'.' -f1`
+          # Handle inconsistent product record version data for SMT
+          if [[ $PRODUCT = SMT ]] && \
+             [[ `echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
+|cut -d'"' -f2` = 11 ]] && \
+             [[ `echo ${PRODUCT_LINE#"${PRODUCT_LINE%%release=*}"} \
+|cut -d'"' -f2` = 1.3 ]] ; then 
+            PRODUCT_LONG=$PRODUCT_LONG" SP1"
+            PRODUCT_SP=1
+          else
+            PRODUCT_SP_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
+|cut -d'"' -f2`
+          fi
+          if [ ! $PRODUCT_SP ] ; then
+            if [[ `echo $PRODUCT_SP_TMP|grep '\.'` ]] ; then
+              PRODUCT_SP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
+|cut -d'"' -f2|cut -d'.' -f2`
+            else 
+              PRODUCT_SP=0
+            fi
+          fi
+          PRODUCT_ARCH=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%arch=*}"} \
+|cut -d'"' -f2`
+          # If service pack > 0 add it to the product string
+          get_sp_string $PRODUCT_SP
+          # Add product to array of installed products
+          add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
+"#"$PRODUCT_LONG $BASE_PRODUCT_VER $SP_STRING"#"$PRODUCT$PRODUCT_VER$SP_STRING"
+        fi
+      done < "$TEMPFILE1"
+    fi
+  fi
+else
+  updatesfile_useless
+  echo "Check zypper setup on $HOSTNAME"
+fi
+# Handle out-of-product installations of cloud-init
+if ! `echo ${PRODUCTS[*]}|grep -q MOD_CLOUD` && grep -q cloud-init rpm.txt ; then
+  echo "Public Cloud Module packages are installed, but the module extension is not."
+  echo "Adding the module"
+  add_product "MOD_CLOUD#"$BASE_PRODUCT_VER"#0#"\
+$BASE_PRODUCT_ARCH"#Public Cloud Module"$PRODUCT_VER" "$PRODUCT_SP"#MOD_CLOUD"$BASE_PRODUCT_VER
+fi
+# Handle some situations where MOD_BASESYSTEM and MOD_SRV_APPS are not marked as installed on 15
+if [ $BASE_PRODUCT = "SLES" ] && [[ $BASE_PRODUCT_VER -ge 15 ]] ; then
+  get_sp_string $BASE_PRODUCT_SP
+  if ! `echo ${PRODUCTS[*]}|grep -q MOD_BASESYSTEM`  ; then
+    add_product "MOD_BASESYSTEM#"$BASE_PRODUCT_VER"#$BASE_PRODUCT_SP#"\
+$BASE_PRODUCT_ARCH"#Basesystem Module"$PRODUCT_VER" "$PRODUCT_SP"#MOD_BASESYSTEM"$BASE_PRODUCT_VER$SP_STRING
+  fi
+  if ! `echo ${PRODUCTS[*]}|grep -q MOD_SRV_APPS`  ; then
+  add_product "MOD_SRV_APPS#"$BASE_PRODUCT_VER"#$BASE_PRODUCT_SP#"\
+$BASE_PRODUCT_ARCH"#Server Applications Module"$PRODUCT_VER" "$PRODUCT_SP"#MOD_SRV_APPS"$BASE_PRODUCT_VER$_SP_STRING
+  fi
+fi
+}
+
+dump_array () {
+# List all element in arrayname passed as $1
+eval "array=(\$1)"
+NO_ELEMENTS=$(eval echo \${#$array[*]})
+for ((IX=0; IX < $(eval echo \${#$array[*]}) ; IX++)) ; do
+ eval echo \${$array[$IX]}
+done
+}
+
+check_if_enabled () {
+# See if the user has disabled this repository in the config file
+VALIDATION_SUBJECT=$1
+eval "CHALLENGER=(\$2)"
+eval "ENABLED_LIST=(\$3)"
+if ! $(eval echo \${$ENABLED_LIST[*]} | grep -q $CHALLENGER) ; then
+  echo "The $VALIDATION_SUBJECT $CHALLENGER is needed to analyze $SCONFIG."
+  echo "Unfortunately the configuration does not include it."
+  echo "Please (if supported) fix your configuration file ($CONFFILE) and "
+  echo "try again."
+  cleanup 1
+fi
+return 0
+}
+
+add_repo () {
+# Add a repository to array
+local REPO_TYPE=$(echo $*|cut -d' ' -f1)
+local REPO_NAME=$(echo $*|cut -d' ' -f2)
+local REPO_ARCH=$(echo $*|cut -d' ' -f3)
+local BASE_PRODUCT_VER=$(echo $*|cut -d' ' -f4)
+if ! [[ $REPO_TYPE = "dummy" ]] \
+   && ! $(echo $REPO_NAME | grep -q "LTSS") \
+   && ! $(echo $REPO_NAME | grep -qi "openstack"); then
+  # See if the user has disabled this repository/arch. in the config file
+  case $BASE_PRODUCT_VER in
+    1 )
+      if check_if_enabled repository $REPO_NAME SES_REPOS ; then
+        check_if_enabled repository-architecture $REPO_ARCH SES_ARCHS
+      fi
+      ;;
+    10 )
+      if check_if_enabled repository $REPO_NAME SLE10_REPOS ; then
+        check_if_enabled repository-architecture $REPO_ARCH SLE10_ARCHS
+      fi
+      ;;
+    11 )
+      if check_if_enabled repository $REPO_NAME SLE11_REPOS ; then
+        check_if_enabled repository-architecture $REPO_ARCH SLE11_ARCHS
+      fi
+      ;;
+    12 )
+      if check_if_enabled repository $REPO_NAME SLE12_REPOS ; then
+        check_if_enabled repository-architecture $REPO_ARCH SLE12_ARCHS
+      fi
+      ;;
+    15 )
+      if check_if_enabled repository $REPO_NAME SLE15_REPOS ; then
+        check_if_enabled repository-architecture $REPO_ARCH SLE15_ARCHS
+      fi
+      ;;
+  esac
+fi
+if $(echo $REPO_NAME | grep -qi "openstack"); then
+   if check_if_enabled repository $REPO_NAME SOC_REPOS ; then
+     check_if_enabled repository-architecture $REPO_ARCH SOC_ARCHS
+   fi  
+fi
+REPOS[$REPO_IX]=$*
+((REPO_IX++))
+}
+
+split_version_string () {
+# Split up the version string sub-parts in $1 and return it 
+# in $SPLIT_VER_STRING
+# $2 indicates whether it is the version or release substring to split
+#   1 - Version
+#   2 - Release
+VER=`echo $1|cut -d'-' -f$2`
+do_split
+NO_VER_SPLIT_PARTS=`echo $SPLIT_OUT|wc -w`
+SPLIT_VER_STRING="`echo $NO_VER_SPLIT_PARTS"#"$SPLIT_OUT`"
+}
+
+unpack_repodata_setup () {
+# Unpack and rename $FILELISTS_XML_ARCHV for a repository
+# Store compressed $FILELISTS_XML_ARCHV.gz
+# Arguments :
+# $1 : path/filename to output to
+cp $FILELISTS_XML_ARCHV $FILELISTS_XML_ARCHV".tmp" 
+if ! gunzip -f $FILELISTS_XML_ARCHV ; then
+  echo "Error unpacking repodata file $REPO_URL$FILELISTS_XML_ARCHV"
+  echo "Probably due to inconsistent metadata"
+  echo "Exiting"
+  cleanup 1
+fi
+mv $FILELISTS_XML $1
+mv $FILELISTS_XML_ARCHV".tmp" $1".gz"
+}
+
+repo_access_error () {
+# Bail out if we can't access the repodata
+echo "Failed to access $1"
+echo "Exiting ..."
+cleanup 1
+}
+
+is_file_there () {
+# Check if the file in $1 exists
+if [ -f $1 ] ; then
+  return 0
+else
+  return 1
+fi
+}
+
+check_for_hollow_repodata () {
+# Sometimes the repodata files exist, but contain no packages
+case $REPO_PROTO in 
+  http|https)
+      if [[ `$CURLCMD -sL -w "%{http_code}\\n" \
+            $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV \
+            -o /dev/null` -eq 200 ]] ; then
+        if [[ `$CURLCMD -sL -w "%{http_code}\\n" \
+              $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV \
+              -o $TEMPFILE4` -eq 200 ]] ; then
+          if ! zgrep -q -m1 '<packa' $TEMPFILE4 ; then
+            REPO_IS_EMPTY=Y
+          fi
+        else
+          # debug1
+          echo "repo_access_error in check_for_hollow_repodata"
+          repo_access_error $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV
+        fi    
+      else 
+        repo_access_error "$REPO_URL"repomd.xml
+      fi
+    ;;
+  local|nfs)
+    if ls $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV > /dev/null 2>&1 ; then
+      if ! zgrep -q -m1 '<packa' $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV ; then
+        REPO_IS_EMPTY=Y
+      fi
+    else 
+      repo_access_error "$REPO_URL"repomd.xml
+    fi
+esac
+}
+
+check_if_repo_is_empty ()  {
+# New repositories may exist, but have no repodata in them 
+# until they get populated with packages
+# Set $REPO_IS_EMPTY flag if this is the case
+REPO_URL=$1
+REPO=$2
+REPO_ARCH=$3
+unset REPO_IS_EMPTY
+case $REPO_PROTO in 
+  http|https)
+    if [[ `$CURLCMD -sL -w "%{http_code}\\n" "$REPO_URL"repomd.xml \
+          -o $TEMPFILE2` -eq 200 ]] ; then
+      if ! grep -q "filelists.xml.gz" $TEMPFILE2 ; then
+        REPO_IS_EMPTY=Y 
+      fi
+      get_filelists_info
+    else 
+      repo_access_error "$REPO_URL"repomd.xml
+    fi
+    ;;
+  local|nfs)
+    if cp -p "$REPO_URL"repomd.xml $TEMPFILE2 > /dev/null 2>&1 ; then
+      if ! grep -q "filelists.xml.gz" "$REPO_URL"repomd.xml ; then
+        REPO_IS_EMPTY=Y 
+      fi
+      get_filelists_info
+    else 
+      repo_access_error "$REPO_URL"repomd.xml
+    fi
+esac
+check_for_hollow_repodata
+}
+
+get_filelists_info () {
+# In SLE 12 the filelists.xml.gz is prepended with its sha256 checksum
+# Since there may be multiple instances of *-filelists.xml.gz we have to 
+# derive the current one from repomd.xml
+unset UPSTREAM_FILELISTS_XML_ARCHV
+UPSTREAM_FILELISTS_XML_ARCHV=`grep filelists.xml.gz $TEMPFILE2 \
+  |grep -o 'repodata[^\n]*' |cut -d'/' -f2|tr -d '"'`
+UPSTREAM_REPODATA_MTS=`sed -n '/filelists.xml.gz/,/data/p' $TEMPFILE2 \
+  |grep timestamp |cut -d'>' -f2|cut -d'<' -f1`
+if ! [ $UPSTREAM_FILELISTS_XML_ARCHV ] ; then
+  REPO_IS_EMPTY=Y
+fi
+}
+
+get_repodata_core () {
+unset UPSTREAM_REPODATA_MTS_RAW
+case $REPO_PROTO in 
+  http|https)
+    if [[ `$CURLCMD -sL -w "%{http_code}\\n" $REPO_URL"repomd.xml" \
+          -o $TEMPFILE2` -eq 200 ]] ; then
+      get_filelists_info
+      if [[ `$CURLCMD -sL -w "%{http_code}\\n" \
+            $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV \
+            -o /dev/null` -eq 200 ]] ; then
+        if [[ -n $UPSTREAM_REPODATA_MTS ]] ; then
+          UPSTREAM_MY_REPODATA_DELTA=$(echo \
+            $(expr $UPSTREAM_REPODATA_MTS - $MY_REPODATA_MTS))
+          # We allow 10 minutes of slack
+          if [[ $UPSTREAM_MY_REPODATA_DELTA -gt 600 ]] ; then
+            # Update of repodata needed
+            if [[ `$CURLCMD -sL -w "%{http_code}\\n" \
+                  $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV \
+                  -o $FILELISTS_XML_ARCHV` -eq 200 ]] ; then
+              unpack_repodata_setup "$REPO_FILELIST_OUT"
+            else
+              echo "repo_access_error 1 in get_repodata_core"
+              repo_access_error "$REPO_URL$UPSTREAMFILELISTS_XML_ARCHV"
+            fi
+          else
+            unset REPODATA_UPDATE_NEEDED
+            # REPO is up to date
+          fi
+        else
+          echo "repo_access_error 2 in get_repodata_core"
+          repo_access_error "$REPO_URL$UPSTREAMFILELISTS_XML_ARCHV"
+        fi
+      fi
+    else 
+      echo "repo_access_error 3 in get_repodata_core"
+      repo_access_error "$REPO_URL$FILELISTS_XML_ARCHV"
+    fi
+    ;;
+  local|nfs)
+    if cp $REPO_URL"repomd.xml" $TEMPFILE2 2>&1 ; then
+      get_filelists_info
+      if [[ -n $UPSTREAM_REPODATA_MTS ]] ; then
+        UPSTREAM_MY_REPODATA_DELTA=$(echo \
+$(expr $UPSTREAM_REPODATA_MTS - $MY_REPODATA_MTS))
+        if [[ $UPSTREAM_MY_REPODATA_DELTA -gt 600 ]] ||
+            [ $REPO_TO_FIX ] || [[ $MAINT_FLAG == "u" ]] ; then
+          # Update of repodata needed
+          if cp $REPO_URL$UPSTREAM_FILELISTS_XML_ARCHV $FILELISTS_XML_ARCHV \
+2> /dev/null ; then
+            unpack_repodata_setup "$REPO_FILELIST_OUT"
+          else
+            echo "repo_access_error in get_repodata_core"
+            repo_access_error "$REPO_URL$FILELISTS_XML_ARCHV"
+          fi
+        else
+          unset REPODATA_UPDATE_NEEDED
+        fi
+      else 
+        repo_access_error "$REPO_URL"
+      fi
+    else 
+      repo_access_error "$REPO_URL"
+    fi
+esac
+unset THIS_IS_SLE12
+}
+
+get_scc_base () {
+# Set path underneath repo/
+if echo $SCC_REPOS|grep -q $1 ; then
+  SCC_BASE="SUSE/"
+elif echo $RCE_REPOS|grep -q $1 ; then
+  SCC_BASE="\$RCE/"
+else
+  echo "$1 neither in SCC_REPOS or RCE_REPOS"
+  echo "Please report this problem"
+  cleanup 1
+fi
+
+}
+
+get_repodata () {
+# Fetch and validate the repodata of a repository
+REPO_URL=$1
+REPO=$2
+REPO_ARCH=$3
+REPO_FILELIST_OUT=$4
+MY_REPODATA_MTS=0
+unset REPO_HAS_BEEN_RECREATED REPO_SP_STRING
+if ! [ $REPO_BROKEN ] ; then
+  if [ $MAINT_MODE ] ; then
+    for REPO_FILE in $DBDIR$REPO_CURRENT_PKGS $DBDIR$REPO_RAW_PKGS $DBDIR\
+$REPO_FILELIST_GZ ; do
+      if ! is_file_there $REPO_FILE && [ ! $REPO_HAS_BEEN_RECREATED] ; then
+        REPO_BROKEN=y
+        if ! [ $NEW_LTSS_REPO_CACHE ] && ! [[ $MAINT_FLAG == "w" ]] \
+          && ! [ $INFORMED_CREATING_CACHE ] ; then
+          echo "Repository cache for $REPO $REPO_ARCH seems to be empty"
+          echo "or broken, so we need to create a fresh one."
+        fi
+        MY_REPODATA_MTS=1
+        REPO_TO_FIX_ARG="$REPO $REPO_ARCH"
+        get_repodata_core
+        recreate_repo
+        unset REPODATA_UPDATE_NEEDED INFORMED_CREATING_CACHE
+        return
+      fi
+    done
+  else
+    for REPO_FILE in $DBDIR$REPO_CURRENT_PKGS $DBDIR$REPO_RAW_PKGS $DBDIR\
+$REPO_FILELIST_GZ ; do
+      if ! is_file_there $REPO_FILE ; then
+        if [[ `echo $REPO_CURRENT_PKGS|grep LTSS 2>/dev/null` ]]; then 
+          NEW_LTSS_REPO_CACHE=y   
+          echo "Repository cache for $REPO $REPO_ARCH needs to be created."
+        elif ! [ "$MAINT_FLAG" = "w" ] ; then
+          echo "Repository cache for $REPO $REPO_ARCH seems to be broken"
+          echo "or empty, so we need to create a fresh one."
+        fi
+        MY_REPODATA_MTS=1
+        MAINT_MODE=y
+        REPO_TO_FIX_ARG="$REPO $REPO_ARCH"
+        get_repodata_core
+        recreate_repo
+        unset MAINT_MODE REPODATA_UPDATE_NEEDED
+        break
+      fi
+    done
+  fi
+fi
+if [ ! $REPO_HAS_BEEN_RECREATED ] && [ ! $REPO_BROKEN ] ; then
+  MY_REPODATA_MTS_RAW=$(curl -s -I file://$DBDIR$REPO_FILELIST_GZ \
+    |grep ^Last-Modi|cut -d',' -f2|cut -d' ' -f2-)
+  # Make modification time comparable/epoch
+  MY_REPODATA_MTS=$(date -d "$MY_REPODATA_MTS_RAW" +"%s")
+  REPODATA_UPDATE_NEEDED=y
+  # Extra check for inconsistent repodata cache
+  REPO_RAW_PKGS_MTS=$(stat -t $DBDIR$REPO_RAW_PKGS|cut -d' ' -f13 \
+    |tr -d ' ')
+  REPO_CURRENT_PKGS_MTS=$(stat -t $DBDIR$REPO_CURRENT_PKGS|cut -d' ' -f13 \
+    |tr -d ' ')
+  RAW_CURRENT_DELTA=$(echo $(expr $REPO_RAW_PKGS_MTS - $REPO_CURRENT_PKGS_MTS) \
+    |tr -d '-')
+  # These files should have a modification timestamp within an hour
+  if [ $RAW_CURRENT_DELTA -gt 3600 ]; then 
+    echo "Error :"
+    echo "The repodata cache for $REPO $ARCH is inconsistent"
+    echo "Please run the command : $SCRIPTNAME -w '$REPO $ARCH'"
+    echo "That will create a fresh repodata cache for this repository"
+    cleanup 1
+  fi
+else
+  MY_REPODATA_MTS=0
+  UPSTREAM_MY_REPODATA_DELTA=3600
+fi
+get_repodata_core
+}
+
+find_newest_repo_pkg () {
+# Find the newest/latest of all available package files for this
+NO_PKG_FILES=${#PKG_FILES[*]}
+if [ $NO_PKG_FILES -gt 1 ] ; then
+  # More than one version of the package exist
+  # As a start set the LATEST_PKG_FILE_LINE to first element in PKG_FILES
+  LATEST_PKG_FILE_LINE=${PKG_FILES[0]}
+  PKG_FILE_IX=1
+  while [ $PKG_FILE_IX -lt ${#PKG_FILES[*]} ] ;do
+    find_newest_pkg_file_array
+    ((PKG_FILE_IX++))
+  done
+elif [ $NO_PKG_FILES -eq 1 ] ; then
+  # Only one version of the package exists
+  LATEST_PKG_FILE_LINE=${PKG_FILES[0]}
+  LATEST_PKG_FILE_VER_FULL=`echo $LATEST_PKG_FILE_LINE \
+|cut -d' ' -f2`"-"`echo $LATEST_PKG_FILE_LINE|cut -d' ' -f3`
+  PKG_FILE_VER_FULL=$LATEST_PKG_FILE_VER_FULL
+  # Only one package file found (usually means no updates at all)
+  # We are done with this package
+  PKG_HANDLED=Y
+else
+  if echo $PKG_NAME | grep -qiE 'release-dvd|release-cd' ; then 
+    push_output "0" "$PKG_NAME is installed, but not found in repos - ignoring" 
+  elif echo $PKG_NAME | grep -q "release\-notes" ; then
+    # Ignore release-notes packages, since they are irrelevant for
+    # system operation (and not worth pursuing)
+    :
+  else
+    push_output "2" "Failed to find $PKG_NAME in any repositories"
+    push_output "2" "  Installed version is $INSTALLED_PKG_VER"
+  fi
+  # We are done with this package
+  PKG_HANDLED=Y
+fi
+if [ $PKG_HANDLED = N ] ; then
+  PKG_FILE_VER_FULL=`echo $LATEST_PKG_FILE_LINE \
+|cut -d' ' -f2`"-"`echo $LATEST_PKG_FILE_LINE|cut -d' ' -f3`
+  PKG_REPO=`echo $LATEST_PKG_FILE_LINE|cut -d'#' -f1|cut -d' ' -f4`
+fi
+}
+
+update_repo_cache () {
+echo -e "\nSetting up and refreshing repositories..."
+# Loop through repos that apply to the host and check
+# if they have been updated in $REPO_BASE
+for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
+  unset NEW_PKG_ADDED_TO_REPO
+  REPO_URL=`echo ${REPOS[$REPO_IX]}|cut -d' ' -f1`
+  REPO=`echo ${REPOS[$REPO_IX]}|cut -d' ' -f2`
+  ARCH=`echo ${REPOS[$REPO_IX]}|cut -d' ' -f3`
+  # Setup 
+  get_scc_base $REPO
+  if [ $MAINT_MODE ] ; then
+    ARCH_SHOW=$ARCH
+  else
+    unset ARCH_SHOW
+  fi
+  REPO_FILELIST=$REPO"_"$ARCH"_"$FILELISTS_XML
+  REPO_FILELIST_GZ=$REPO_FILELIST".gz"
+  REPO_RAW_PKGS=$REPO"_"$ARCH"_raw-pkgs"
+  REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
+  unset REPO_BROKEN
+  check_if_repo_is_empty $REPO_URL $REPO $ARCH
+  if [ $REPO_IS_EMPTY ] ; then
+    echo "($REPO is empty - skipped)"
+    # Ripping out $REPO of the REPOS array
+    REPOS=("${REPOS[@]:0:$REPO_IX}" "${REPOS[@]:$(($REPO_IX + 1))}")
+    ((REPO_IX--))
+  else
+    echo $REPO $ARCH_SHOW
+    # Fetch and validate the repodata of this repository
+    if `echo $REPO|grep -Eqi '12|15|storage|openstack'` ; then
+      if `echo $REPO|grep -qi pool` ; then
+        get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+      elif `echo $REPO|grep -qi updates` ; then
+        get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+      fi
+    else
+      get_repodata "$REAL_REPOBASE$SCC_BASE$REPO"/"$ARCH"/repodata/"" "$REPO" \
+"$ARCH" "$REPO_FILELIST"_new""
+    fi
+    if [ $REPODATA_UPDATE_NEEDED ] ; then
+      # Upstream repodata is newer than what we have
+      echo -en "Please stand by while examining repodata..\r"
+      # Extract package names and their versions from filelists.xml
+      if [[ $(grep -A1 -m1 '<packa' $REPO_FILELIST"_new"|wc -l) -gt 1 ]] ; then
+        grep -A1 'name=\"' $REPO_FILELIST"_new"|grep -vE '^--|<file ' \
+          |sed 'N;s/\n/ /'|grep -v 'src>'|tr -d '"'|sed 's/  */ /g' \
+          |sed 's/^ *//g'|cut -d' ' -f1,3-|grep -v '^$' \
+          |sort  > $REPO_RAW_PKGS"_new"
+      else
+        grep -A1 'name=\"' $REPO_FILELIST"_new"|tr -d '"' \
+          |sed 's/  */ /g' |sed 's/^ *//g'|cut -d' ' -f1,3-7|cut -d'/' -f1 \
+          |grep -v '^$'|sort  > $REPO_RAW_PKGS"_new"
+      fi
+      # Identify changes with a simple diff
+      diff -u $DBDIR$REPO_RAW_PKGS $REPO_RAW_PKGS"_new"|grep -E '^\+|^\-' \
+        |grep -Ev '^\-\-\-|^\+\+\+' > $TEMPFILE1
+      # Make a copy of the current cache file
+      cp $DBDIR$REPO_CURRENT_PKGS $REPO_CURRENT_PKGS"_new"
+      rm $TEMPFILE2
+      touch $TEMPFILE2
+      while read REPO_PKG_XML_LINE ; do
+        CHG=`echo $REPO_PKG_XML_LINE|cut -c1`
+        REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%name=*}"}\
+|cut -d'=' -f2|cut -d' ' -f1`
+        echo "$CHG$REPO_PKG_NAME " >> $TEMPFILE2
+      done < "$TEMPFILE1"
+      sort -u $TEMPFILE2 > $TEMPFILE3
+      unset UPDATED_PKGS_IN_REPO
+      echo -en "                                                        \r"
+      while read REPO_PACKAGE_LINE ; do
+        REPO_CHG=`echo $REPO_PACKAGE_LINE|cut -c1`
+        REPO_PACKAGE_LINE_PKG=`echo $REPO_PACKAGE_LINE|cut -c2-`
+        if [ $REPO_CHG = '-' ] && ! grep -q "\+$REPO_PACKAGE_LINE_PKG " \
+$TEMPFILE3 ; then
+          # Package removed from repository.
+          # This mostly happens during product beta testing phases
+          echo "  Removing $REPO_PACKAGE_LINE_PKG from $REPO $ARCH"
+          sed -i '/^'"$REPO_PACKAGE_LINE_PKG"' /d' $REPO_CURRENT_PKGS"_new"
+        else
+          # Clear array
+          unset PKG_FILES
+          PKG_FILE_IX=0
+          PKG_HANDLED="N"
+          PKG_FILE_NO=0
+          # Find all versions of this package in the repo
+          # and store them in $TEMPFILE2
+          grep "$REPO_PACKAGE_LINE_PKG " $REPO_RAW_PKGS"_new" 2>/dev/null > \
+            $TEMPFILE2
+          while read REPO_PKG_XML_LINE ; do
+            REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#\
+"${REPO_PKG_XML_LINE%%name=*}"}|cut -d'=' -f2|cut -d' ' -f1`
+            if [[ $REPO_PKG_NAME = $REPO_PACKAGE_LINE_PKG ]] ; then
+              REPO_PKG_VER=`echo ${REPO_PKG_XML_LINE#\
+"${REPO_PKG_XML_LINE%%ver=*}"}|cut -d'=' -f2|cut -d' ' -f1`
+              REPO_PKG_REL=`echo ${REPO_PKG_XML_LINE#\
+"${REPO_PKG_XML_LINE%%rel=*}"}|cut -d'=' -f2|cut -d'/' -f1`
+              # Split up the version part of the version string 
+              # to make it comparable
+              split_version_string $REPO_PKG_VER 1
+              REPO_PKG_VER_SPLIT=$SPLIT_VER_STRING
+              # Split up the release part of the version string 
+              # to make it comparable
+              split_version_string $REPO_PKG_REL 1
+              REPO_PKG_REL_SPLIT=$SPLIT_VER_STRING
+              # Add the package to the array
+              PKG_FILES[$PKG_FILE_IX]="$REPO_PKG_NAME $REPO_PKG_VER \
+$REPO_PKG_REL $REPO"#"$REPO_PKG_VER_SPLIT"#"$REPO_PKG_REL_SPLIT"
+              ((PKG_FILE_IX++))
+            fi
+          done < "$TEMPFILE2"
+          find_newest_repo_pkg
+          REPO_PKG_NAME=`echo $LATEST_PKG_FILE_LINE|cut -d' ' -f1`
+          REPO_PKG_VER_CURRENT=`echo $LATEST_PKG_FILE_LINE|cut -d' ' -f2`"-"\
+`echo $LATEST_PKG_FILE_LINE|cut -d' ' -f3`
+          if grep -q "^$REPO_PKG_NAME " $REPO_CURRENT_PKGS"_new" \
+            && ! [[ $(echo "$UPDATED_PKGS_IN_REPO" | \
+grep "$REPO_PKG_NAME ") ]]; then
+            echo "  Updating latest version of $REPO_PKG_NAME to \
+$REPO_PKG_VER_CURRENT"
+            sed -i 's/^'"$REPO_PKG_NAME"' .*$/'"$LATEST_PKG_FILE_LINE"'/' \
+$REPO_CURRENT_PKGS"_new"
+            UPDATED_PKGS_IN_REPO=$UPDATED_PKGS_IN_REPO"$REPO_PKG_NAME "
+          elif ! [[ $(echo " $UPDATED_PKGS_IN_REPO" | \
+grep " $REPO_PKG_NAME ") ]]; then
+            NEW_PKG_ADDED_TO_REPO=y
+            echo "  Adding $REPO_PKG_NAME $REPO_PKG_VER_CURRENT"
+            echo $LATEST_PKG_FILE_LINE >> $REPO_CURRENT_PKGS"_new"
+            UPDATED_PKGS_IN_REPO=$UPDATED_PKGS_IN_REPO"$REPO_PKG_NAME "
+          fi
+          rm $TEMPFILE7
+          touch $TEMPFILE7
+        fi
+      done < "$TEMPFILE3"  
+      if [ $NEW_PKG_ADDED_TO_REPO ] ; then
+        # New packages added - replace repodata cache
+        sort $REPO_CURRENT_PKGS"_new" > $DBDIR$REPO_CURRENT_PKGS
+        rm $REPO_CURRENT_PKGS"_new"
+      else
+        # Nothing changed - rename back (probably not needed)
+        mv -f $REPO_CURRENT_PKGS"_new" $DBDIR$REPO_CURRENT_PKGS
+      fi
+      mv -f $REPO_FILELIST_OUT $DBDIR$REPO_FILELIST
+      mv -f $REPO_FILELIST_OUT".gz" $DBDIR$REPO_FILELIST_GZ
+      mv -f $REPO_RAW_PKGS"_new" $DBDIR$REPO_RAW_PKGS
+    fi
+  fi
+done
+}
+
+refresh_repos () {
+# Forced update/refresh invoked through -u flag
+# SLE 15
+PRODUCT_VER=15
+for ((SLE_15_REPO_IX=0; SLE_15_REPO_IX < ${#SLE15_REPOS[*]} ; \
+  SLE_15_REPO_IX++)) ; do
+  unset REPO_SP_STRING
+  for ((ARCH_IX=0; ARCH_IX < ${#SLE15_ARCHS[*]} ; ARCH_IX++)) ; do
+    sle12_repo_product_setup ${SLE15_REPOS[$SLE_15_REPO_IX]}
+    if `echo $REPO_PRODUCT |grep -qi package-hub` ; then
+      # BEGIN Package-Hub
+      PH_REPO=${SLE15_REPOS[$SLE_15_REPO_IX]}
+      PH_REPO_ARCH=${SLE15_ARCHS[$ARCH_IX]}
+      if `echo $PH_REPO|grep -qi standard-pool` ||
+         `echo $PH_REPO|grep -qi backports-pool` ; then
+        # SLE 12  : Standard-Pool is  == Updates  
+        # SLE 15+ : Backports-Pool is == Updates
+        add_repo $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$PH_REPO_ARCH"/standard/repodata/" \
+$PH_REPO $PH_REPO_ARCH $PRODUCT_VER
+      elif `echo $PH_REPO|grep -qi subpackages` &&
+           `echo $PH_REPO|grep -qi pool` ; then
+        # SLE15+ has Subpackages as well (containing built, but unpublished 
+        # packages from SLE)
+        add_repo $REAL_REPOBASE$SCC_BASE\
+"Products/SLE-Module-Packagehub-Subpackages/$PRODUCT_VER$REPO_SP_STRING\
+/$PH_REPO_ARCH/product/repodata/" $PH_REPO $PH_REPO_ARCH $PRODUCT_VER
+      elif `echo $PH_REPO|grep -qi subpackages` &&
+           `echo $PH_REPO|grep -qi updates` ; then
+        add_repo $REAL_REPOBASE$SCC_BASE\
+"Updates/SLE-Module-Packagehub-Subpackages/$PRODUCT_VER$REPO_SP_STRING\
+/$PH_REPO_ARCH/update/repodata/" $PH_REPO $PH_REPO_ARCH $PRODUCT_VER
+      else
+        # Not yet caught must be pool        
+        # Pool is == Pool  
+        add_repo $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$PH_REPO_ARCH"/product/repodata/" \
+$PH_REPO $PH_REPO_ARCH $PRODUCT_VER
+      fi
+      # END Package-Hub
+    elif `echo ${SLE15_REPOS[$SLE_15_REPO_IX]}|grep -qi pool` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"${SLE15_ARCHS[$ARCH_IX]}"/product/repodata/" \
+${SLE15_REPOS[$SLE_15_REPO_IX]} ${SLE15_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    elif `echo ${SLE15_REPOS[$SLE_15_REPO_IX]}|grep -qi updates` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"${SLE15_ARCHS[$ARCH_IX]}"/update/repodata/" \
+${SLE15_REPOS[$SLE_15_REPO_IX]} ${SLE15_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    fi
+  done
+done
+# SLE 12
+PRODUCT_VER=12
+for ((SLE_12_REPO_IX=0; SLE_12_REPO_IX < ${#SLE12_REPOS[*]} ; \
+  SLE_12_REPO_IX++)) ; do
+  unset REPO_SP_STRING
+  for ((ARCH_IX=0; ARCH_IX < ${#SLE12_ARCHS[*]} ; ARCH_IX++)) ; do
+    sle12_repo_product_setup ${SLE12_REPOS[$SLE_12_REPO_IX]}
+    if `echo $REPO_PRODUCT |grep -qi package-hub` ; then
+      # BEGIN Package-Hub
+      PH_REPO=${SLE12_REPOS[$SLE_12_REPO_IX]}
+      PH_REPO_ARCH=${SLE12_ARCHS[$ARCH_IX]}
+      if `echo $PH_REPO|grep -qi standard-pool` ||
+         `echo $PH_REPO|grep -qi backports-pool` ; then
+        # SLE 12  : Standard-Pool is  == Updates  
+        # SLE 15+ : Backports-Pool is == Updates
+        add_repo $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$PH_REPO_ARCH"/standard/repodata/" \
+$PH_REPO $PH_REPO_ARCH $PRODUCT_VER
+      else
+        # Not yet caught must be pool        
+        # Pool is == Pool  
+        add_repo $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$PH_REPO_ARCH"/product/repodata/" \
+$PH_REPO $PH_REPO_ARCH $PRODUCT_VER
+      fi
+      # END Package-Hub
+    elif `echo ${SLE12_REPOS[$SLE_12_REPO_IX]}|grep -qi pool` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"${SLE12_ARCHS[$ARCH_IX]}"/product/repodata/" \
+${SLE12_REPOS[$SLE_12_REPO_IX]} ${SLE12_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    elif `echo ${SLE12_REPOS[$SLE_12_REPO_IX]}|grep -qi updates` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"${SLE12_ARCHS[$ARCH_IX]}"/update/repodata/" \
+${SLE12_REPOS[$SLE_12_REPO_IX]} ${SLE12_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    fi
+  done
+done
+# SLE 11
+PRODUCT_VER=11
+for ((SLE_11_REPO_IX=0; SLE_11_REPO_IX < ${#SLE11_REPOS[*]} ; \
+  SLE_11_REPO_IX++)) ; do
+  get_scc_base ${SLE11_REPOS[$SLE_11_REPO_IX]}
+  for ((ARCH_IX=0; ARCH_IX < ${#SLE11_ARCHS[*]} ; ARCH_IX++)) ; do
+    add_repo "$REAL_REPOBASE$SCC_BASE${SLE11_REPOS[$SLE_11_REPO_IX]}"/"\
+${SLE11_ARCHS[$ARCH_IX]}"/repodata/" ${SLE11_REPOS[$SLE_11_REPO_IX]} \
+${SLE11_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+  done
+done
+# SLE 10
+PRODUCT_VER=10
+for ((SLE_10_REPO_IX=0; SLE_10_REPO_IX < ${#SLE10_REPOS[*]} ; \
+  SLE_10_REPO_IX++)) ; do
+  get_scc_base ${SLE10_REPOS[$SLE_10_REPO_IX]}
+  for ((ARCH_IX=0; ARCH_IX < ${#SLE10_ARCHS[*]} ; ARCH_IX++)) ; do
+    add_repo "$REAL_REPOBASE$SCC_BASE${SLE10_REPOS[$SLE_10_REPO_IX]}"/"\
+${SLE10_ARCHS[$ARCH_IX]}"/repodata/" ${SLE10_REPOS[$SLE_10_REPO_IX]} \
+${SLE10_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+  done
+done
+# SES
+for ((SES_REPO_IX=0; SES_REPO_IX < ${#SES_REPOS[*]} ; \
+  SES_REPO_IX++)) ; do
+  REPO_PRODUCT="Storage"
+  PRODUCT_VER=`echo ${SES_REPOS[$SES_REPO_IX]}|cut -d- -f4`
+  get_scc_base ${SES_REPOS[$SES_REPO_IX]}
+  unset REPO_SP_STRING
+  for ((ARCH_IX=0; ARCH_IX < ${#SES_ARCHS[*]} ; ARCH_IX++)) ; do
+    if `echo ${SES_REPOS[$SES_REPO_IX]}|grep -qi pool` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER"/"${SES_ARCHS[$ARCH_IX]}"/product/repodata/" \
+${SES_REPOS[$SES_REPO_IX]} ${SES_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    elif `echo ${SES_REPOS[$SES_REPO_IX]}|grep -qi updates` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
+$PRODUCT_VER"/"${SES_ARCHS[$ARCH_IX]}"/update/repodata/" \
+${SES_REPOS[$SES_REPO_IX]} ${SES_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    fi
+  done
+done
+# SOC
+for ((SOC_REPO_IX=0; SOC_REPO_IX < ${#SOC_REPOS[*]} ; \
+  SOC_REPO_IX++)) ; do
+  REPO_PRODUCT="OpenStack-Cloud"
+  PRODUCT_VER=`echo ${SOC_REPOS[$SOC_REPO_IX]}|cut -d- -f4`
+  get_scc_base ${SOC_REPOS[$SOC_REPO_IX]}
+  unset REPO_SP_STRING
+  for ((ARCH_IX=0; ARCH_IX < ${#SOC_ARCHS[*]} ; ARCH_IX++)) ; do
+    if `echo ${SOC_REPOS[$SOC_REPO_IX]}|grep -qi pool` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER"/"${SOC_ARCHS[$ARCH_IX]}"/product/repodata/" \
+${SOC_REPOS[$SOC_REPO_IX]} ${SOC_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    elif `echo ${SOC_REPOS[$SOC_REPO_IX]}|grep -qi updates` ; then
+      add_repo "$REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
+$PRODUCT_VER"/"${SOC_ARCHS[$ARCH_IX]}"/update/repodata/" \
+${SOC_REPOS[$SOC_REPO_IX]} ${SOC_ARCHS[$ARCH_IX]} $PRODUCT_VER"
+    fi
+  done
+done
+update_repo_cache
+}
+
+create_repo_cache () {
+# Create a fresh cache of a repository
+# Happens either if the current is deemed broken or if it is an 
+# LTSS repository, which only gets created post install. We can not
+# ship the LTSS repodata with the package for legal reasons.
+# Extract all packages in $REPO
+if [[ $(grep -A1 -m1 '<packa' $DBDIR$REPO_FILELIST|wc -l) -gt 1 ]] ; then
+  grep -A1 'name=\"' $DBDIR$REPO_FILELIST|grep -vE '^--|<file ' \
+    |sed 'N;s/\n/ /'|grep -v 'src>'|tr -d '"'|sed 's/  */ /g' \
+    |sed 's/^ *//g'|cut -d' ' -f1,3-|grep -v '^$' \
+    |sort  > $DBDIR$REPO_RAW_PKGS
+else
+  grep -A1 'name=\"' $DBDIR$REPO_FILELIST|tr -d '"' \
+    |sed 's/  */ /g' |sed 's/^ *//g'|cut -d' ' -f1,3-7|cut -d'/' -f1 \
+    |grep -v '^$'|sort  > $DBDIR$REPO_RAW_PKGS
+fi
+if [[ $(wc -l $DBDIR$REPO_RAW_PKGS|cut -d' ' -f1) -lt 1 ]] ; then
+  echo "Unknown error while creating the repository cache for $REPO"
+  echo "Exiting"
+  cleanup 1
+fi
+rm $TEMPFILE2 $TEMPFILE7
+touch $TEMPFILE2 $TEMPFILE7
+while read REPO_PKG_XML_LINE ; do
+  REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%name=*}"} | \
+cut -d'=' -f2|cut -d' ' -f1`
+  echo $REPO_PKG_NAME >> $TEMPFILE2
+done < "$DBDIR$REPO_RAW_PKGS"
+sort -u $TEMPFILE2 > $TEMPFILE3
+while read REPO_PACKAGE_LINE ; do
+  # Clear array
+  unset PKG_FILES
+  PKG_FILE_IX=0
+  PKG_HANDLED="N"
+  PKG_FILE_NO=0
+  # Find all versions of this package in the repo, store them in $TEMPFILE2
+  grep "$REPO_PACKAGE_LINE " $DBDIR$REPO_RAW_PKGS 2>/dev/null > $TEMPFILE2
+  while read REPO_PKG_XML_LINE ; do
+    REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%name=*}"} \
+|cut -d'=' -f2|cut -d' ' -f1`
+    if [[ $REPO_PKG_NAME = $REPO_PACKAGE_LINE ]] ; then
+      REPO_PKG_VER=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%ver=*}"} \
+|cut -d'=' -f2|cut -d' ' -f1`
+      REPO_PKG_REL=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%rel=*}"} \
+|cut -d'=' -f2|cut -d'/' -f1`
+      # Split up the version part of the version string to make it comparable
+      split_version_string $REPO_PKG_VER 1
+      REPO_PKG_VER_SPLIT=$SPLIT_VER_STRING
+      split_version_string $REPO_PKG_REL 1
+      REPO_PKG_REL_SPLIT=$SPLIT_VER_STRING
+      PKG_FILES[$PKG_FILE_IX]="$REPO_PKG_NAME $REPO_PKG_VER $REPO_PKG_REL \
+$REPO"#"$REPO_PKG_VER_SPLIT"#"$REPO_PKG_REL_SPLIT"
+      ((PKG_FILE_IX++))
+    fi
+  done < "$TEMPFILE2"
+  find_newest_repo_pkg
+  echo "  Added `echo $LATEST_PKG_FILE_LINE | cut -d'#' -f1|cut -d' ' -f1-2`\
+-`echo $LATEST_PKG_FILE_LINE | cut -d'#' -f1|cut -d' ' -f3`"
+  echo $LATEST_PKG_FILE_LINE >> $TEMPFILE7
+done < "$TEMPFILE3" 
+cp $TEMPFILE7 $DBDIR$REPO_CURRENT_PKGS
+}
+
+sle12_repo_product_setup () {
+# Preliminary product detection for SLE 12
+# Arguments : $1 is the repository name string
+SCC_BASE="SUSE/"
+if `echo $1|grep -q SLES` ; then
+  if [[ $PRODUCT_VER -eq 12 ]] ; then
+    REPO_PRODUCT="SLE-SERVER"
+  else
+    REPO_PRODUCT="SLE-Product-SLES"
+  fi
+elif `echo $1|grep -q "SDK"` ; then
+  REPO_PRODUCT="SLE-SDK"
+elif `echo $1|grep -q "HA"` ; then
+  if [[ $PRODUCT_VER -eq 12 ]] ; then
+    REPO_PRODUCT="SLE-HA"
+  else
+    REPO_PRODUCT="SLE-Product-HA"
+  fi
+elif `echo $1|grep -qiE "MOD_BASESYSTEM|module-basesystem"` ; then
+  REPO_PRODUCT="SLE-Module-Basesystem"
+elif `echo $1|grep -qiE "MOD_CERT|certifications"` ; then
+  REPO_PRODUCT="SLE-Module-Certifications"
+elif `echo $1|grep -qiE "MOD_CONT|containers"` ; then
+  REPO_PRODUCT="SLE-Module-Containers"
+elif `echo $1|grep -qiE "MOD_CLOUD|public-cloud"` ; then
+  REPO_PRODUCT="SLE-Module-Public-Cloud"
+elif `echo $1|grep -qiE "MOD_DESKTOP|module-desktop-app"` ; then
+  REPO_PRODUCT="SLE-Module-Desktop-Applications"
+elif `echo $1|grep -qiE "MOD_DEV_TOOLS|module-development-tools"` ; then
+  REPO_PRODUCT="SLE-Module-Development-Tools"
+elif `echo $1|grep -qiE "MOD_HPC|hpc"` ; then
+  REPO_PRODUCT="SLE-Module-HPC"
+elif `echo $1|grep -qiE "MOD_LEGACY|legacy"` ; then
+    REPO_PRODUCT="SLE-Module-Legacy"
+elif `echo $1|grep -qiE "MOD_SRV_APPS|module-server-app"` ; then
+  REPO_PRODUCT="SLE-Module-Server-Applications"
+elif `echo $1|grep -qiE "MOD_PYTHON2|module-python2"` ; then
+  REPO_PRODUCT="SLE-Module-Python2"
+elif `echo $1|grep -qiE "MOD_SYSMGMT|systems-man"` ; then
+  REPO_PRODUCT="SLE-Module-Adv-Systems-Management"
+elif `echo $1|grep -qiE "MOD_TOOLCH|toolchain"` ; then
+  REPO_PRODUCT="SLE-Module-Toolchain"
+elif `echo $1|grep -qiE "MOD_WEBSCR|web-scr"` ; then
+    REPO_PRODUCT="SLE-Module-Web-Scripting"
+elif `echo $1|grep -qiE "PKGHUB|packagehub"` ; then
+  REPO_PRODUCT="SUSE-Package-Hub"
+elif `echo $1|grep -qiE "WE"` ; then
+  if [[ $PRODUCT_VER -eq 12 ]] ; then
+    REPO_PRODUCT="SLE-WE"
+  else
+    REPO_PRODUCT="SLE-Product-WE"
+  fi
+elif `echo $1|grep -qiE "SES"` ; then
+  REPO_PRODUCT="Storage"
+elif `echo $1|grep -qiE "SOC|openstack-cloud"` ; then
+  REPO_PRODUCT="OpenStack-Cloud"
+else
+  echo "Error in product setup"
+  cleanup 1
+fi
+if [[ ! $REPO_SP_STRING ]] && $(echo $1|grep -q '\-SP.\-') ; then
+  REPO_SP_STRING="-"$(echo $1 | sed 's/.*\(-SP.\)/\1/'|cut -d- -f2)
+fi
+if echo $1|grep -q 'LTSS' ; then
+  REPO_SP_STRING=$REPO_SP_STRING"-LTSS"
+fi
+}
+
+recreate_repo () {
+# Validate arguments
+if [ -n "$REPO_TO_FIX_ARG" ] ; then
+  REPO_TO_FIX=$(echo $REPO_TO_FIX_ARG|cut -d' ' -f1|tr -d ' ')
+  REPO=$REPO_TO_FIX
+  get_scc_base $REPO
+  if [[ $(echo ${SLE15_REPOS[*]} | grep $REPO_TO_FIX) || \
+        $(echo ${SLE12_REPOS[*]} | grep $REPO_TO_FIX) || \
+        $(echo ${SLE11_REPOS[*]} | grep $REPO_TO_FIX) || \
+        $(echo ${SLE10_REPOS[*]} | grep $REPO_TO_FIX) || \
+        $(echo ${SES_REPOS[*]} | grep $REPO_TO_FIX) || \
+        $(echo ${SOC_REPOS[*]} | grep $REPO_TO_FIX) || \
+        $(echo ${LTSS_REPOS[*]} | grep $REPO_TO_FIX) ]] ; then
+    REPO_TO_FIX_ARCH=$(echo $REPO_TO_FIX_ARG|cut -d' ' -f2|tr -d ' ')
+    if [ -n "$REPO_TO_FIX_ARCH" ] ; then
+      if ! [[ $(echo ${SLE15_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
+              $(echo ${SLE12_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
+              $(echo ${SLE11_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
+              $(echo ${SLE10_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
+              $(echo ${SOC_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
+              $(echo ${SES_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) ]] ; then
+        echo -e "\nError : Invalid/unsupported architecture \
+($REPO_TO_FIX_ARCH) specified"
+        echo "Supported architectures are :"
+        echo ${SLE15_ARCHS[*]}
+        echo ${SLE12_ARCHS[*]}
+        echo ${SLE11_ARCHS[*]}
+        echo ${SLE10_ARCHS[*]}
+        echo ${SES_ARCHS[*]}
+        echo ${SOC_ARCHS[*]}
+        usage_maint
+        cleanup 1
+      fi
+    else
+      echo -e "\nError : Architecture not specified"
+      usage_maint
+      cleanup 1
+    fi 
+    if ! [ $NEW_LTSS_REPO_CACHE ] && ! [ $INFORMED_CREATING_CACHE ] ; then
+      echo -e "\nCreating cache for $REPO_TO_FIX $REPO_TO_FIX_ARCH"
+      echo -e "Please have patience while we do that...\n"
+      INFORMED_CREATING_CACHE=y
+    fi
+    REPO_FILELIST=$REPO_TO_FIX"_"$REPO_TO_FIX_ARCH"_"$FILELISTS_XML
+    REPO_CURRENT_PKGS=$REPO_TO_FIX"_"$REPO_TO_FIX_ARCH"_current-pkgs"
+    REPO_RAW_PKGS=$REPO_TO_FIX"_"$REPO_TO_FIX_ARCH"_raw-pkgs"
+    if [ $REPO_IS_EMPTY ] ; then
+      echo "($REPO_TO_FIX is empty - skipped)"
+    else
+      test -e $DBDIR$REPO_CURRENT_PKGS && rm -f $DBDIR$REPO_CURRENT_PKGS
+      # Fetch and validate the repodata of this repository
+      if `echo $REPO_TO_FIX|grep -qi package-hub` ||
+         `echo $REPO_TO_FIX|grep -qi packagehub` ; then
+        # Just run sle12_repo_product_setup () to get $REPO_SP_STRING set
+        if  $(echo $REPO_TO_FIX|grep -qE "12") ; then
+          PRODUCT_VER=12
+        else
+          PRODUCT_VER=15
+        fi
+        sle12_repo_product_setup $REPO_TO_FIX
+        # SUSE Package Hub needs special treatment
+        if `echo $REPO_TO_FIX|grep -qi standard-pool` ||
+           `echo $REPO_TO_FIX|grep -qi backports-pool`; then
+          # Standard-Pool is == Updates  
+          get_repodata $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$REPO_TO_FIX_ARCH"/standard/repodata/" \
+$REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
+        elif `echo $REPO_TO_FIX|grep -qi subpackages` ; then
+          # SLE15+ has Subpackages as well (containing built, but unpublished 
+          # packages from SLE)
+          if `echo $REPO_TO_FIX|grep -qi pool` ; then
+            # Subpackages-Pool
+            get_repodata $REAL_REPOBASE$SCC_BASE\
+"Products/SLE-Module-Packagehub-Subpackages/$PRODUCT_VER$REPO_SP_STRING\
+/$REPO_TO_FIX_ARCH/product/repodata/" \
+$REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
+          else
+            # Subpackages-Updates
+            get_repodata $REAL_REPOBASE$SCC_BASE\
+"Updates/SLE-Module-Packagehub-Subpackages/$PRODUCT_VER$REPO_SP_STRING\
+/$REPO_TO_FIX_ARCH/update/repodata/" \
+$REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
+          fi
+        elif `echo $REPO_TO_FIX|grep -qi pool` ; then
+          # If not caught yet it should be Pool
+          # Pool is == Pool  
+          get_repodata $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$REPO_TO_FIX_ARCH"/product/repodata/" \
+$REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
+        else
+          echo "Package Hub repo setup problem - exiting..."
+          echo "REPO_PRODUCT  : $REPO_PRODUCT"
+          echo "PRODUCT_VER   : $PRODUCT_VER"
+          echo "PRODUCT_SP    : $PRODUCT_SP"
+          cleanup 1
+        fi
+      elif `echo $REPO_TO_FIX|grep -qiE "openstack-cloud"` ; then
+        # Hack for SUSE OpenStack Cloud, since it is not SLE.
+        get_scc_base $REPO
+        PRODUCT_VER=`echo $REPO|cut -d- -f4`
+        if `echo $REPO|grep -qi pool` ; then
+          get_repodata $REAL_REPOBASE$SCC_BASE"Products/OpenStack-Cloud/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/product/repodata/" \
+$REPO_TO_FIX $REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
+        elif `echo $REPO|grep -qi updates` ; then
+          get_repodata $REAL_REPOBASE$SCC_BASE"Updates/OpenStack-Cloud/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/update/repodata/" \
+$REPO_TO_FIX $REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
+        fi
+      elif `echo $REPO_TO_FIX | grep -q Storage ` ; then
+        # Hack for SUSE Enterprise Storage, 
+        # since it breaks the naming convention.
+        PRODUCT_VER=`echo $REPO|cut -d- -f4`
+        if `echo $REPO|grep -qi pool` ; then
+          get_repodata $REAL_REPOBASE$SCC_BASE"Products/Storage/"\
+$PRODUCT_VER"/"$REPO_TO_FIX_ARCH"/product/repodata/" $REPO_TO_FIX \
+$REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
+        elif `echo $REPO|grep -qi updates` ; then
+          get_repodata $REAL_REPOBASE$SCC_BASE"Updates/Storage/"\
+$PRODUCT_VER"/"$REPO_TO_FIX_ARCH"/update/repodata/" $REPO_TO_FIX \
+$REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
+        fi
+      elif $(echo $REPO_TO_FIX|grep -qE "SLES") && \
+         $(echo $REPO_TO_FIX|grep -qE "12|15") ||
+         $(echo $REPO_TO_FIX|grep -qE "SLE-") && \
+         $(echo $REPO_TO_FIX|grep -qE "12|15") ; then
+        THIS_IS_SLE12=y
+        if  $(echo $REPO_TO_FIX|grep -qE "12") ; then
+          PRODUCT_VER=12
+        else
+          PRODUCT_VER=15
+        fi
+        sle12_repo_product_setup $REPO_TO_FIX
+            if `echo $REPO_TO_FIX|grep -qi pool` ; then
+              get_repodata $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/product/repodata/" \
+"$REPO_TO_FIX" "$REPO_TO_FIX_ARCH" "$DBDIR$REPO_FILELIST"
+            elif `echo $REPO|grep -qi updates` ; then
+              get_repodata $REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/update/repodata/" \
+"$REPO_TO_FIX" "$REPO_TO_FIX_ARCH" "$DBDIR$REPO_FILELIST"
+            fi
+      else
+        # Pre SLE 12
+        get_repodata "$REAL_REPOBASE"\$RCE/"$REPO_TO_FIX"/"$REPO_TO_FIX_ARCH\
+"/repodata/"" "$REPO_TO_FIX" "$REPO_TO_FIX_ARCH" \
+"$DBDIR$REPO_FILELIST"
+      fi
+      if ! [ $REPO_HAS_BEEN_RECREATED ] ; then
+        create_repo_cache
+      fi
+      unset REPO_BROKEN
+      REPO_HAS_BEEN_RECREATED=y
+    fi
+  else
+    echo -e "\nError : Invalid/unsupported repository ($REPO_TO_FIX) specified"
+    echo "Supported repositories are :"
+    echo ${SLE15_REPOS[*]}
+    echo ${SLE12_REPOS[*]}
+    echo ${SLE11_REPOS[*]}
+    echo ${SLE10_REPOS[*]}
+    echo ${SES_REPOS[*]}
+    echo ${SOC_REPOS[*]}
+    echo ${LTSS_REPOS[*]}
+    usage_maint
+    cleanup 1
+  fi
+  unset REPO_TO_FIX
+else
+  echo "Error : Repository and architecture not specified"
+  usage_maint
+  cleanup 1
+fi
+}
+
+chew_repo_base () {
+# Validate $REPOBASE and mount it if on NFS
+if `echo $REPOBASE|grep -q '\:'` ; then
+  REPO_PROTO=$(echo $REPOBASE| awk -F: '{print $1}')  
+else
+  # REPOBASE seems to be on a local filesystem
+  if test -e $REPOBASE ; then
+    REPO_PROTO=local
+  else
+    echo "Unable to access $REPOBASE. Exiting"
+    cleanup 1
+  fi
+fi
+case $REPO_PROTO in
+  http|https|local  ) 
+    REAL_REPOBASE=$REPOBASE
+    ;;
+  nfs               )
+    if [ `id -u` != 0 ]; then
+        NON_ROOT=Y
+      else
+        unset NON_ROOT
+    fi
+    REPOBASE_SHARE=$(echo $REPOBASE| cut -d'/' -f3-)
+    REPOBASE_MOUNTPOINT=`mktemp -d -p $VAR_DIR`
+    REAL_REPOBASE=$REPOBASE_MOUNTPOINT
+    if [ $NON_ROOT ] ; then 
+      if ! $(sudo -n umount > /dev/null 2>&1) ; then
+        echo "Password (maybe) needed for sudo umount"
+      fi
+      if ! sudo mount -t nfs -o ro $REPOBASE_SHARE $REPOBASE_MOUNTPOINT ; then
+        echo "Failed to mount $REPOBASE_SHARE - Exiting"
+        cleanup 1
+      else
+        REPO_MOUNTED=Y
+      fi
+    else
+      if ! mount -t nfs -o ro $REPOBASE_SHARE $REPOBASE_MOUNTPOINT ; then
+        echo "Failed to mount $REPOBASE_SHARE - Exiting"
+        cleanup 1
+      else
+        REPO_MOUNTED=Y
+      fi
+    fi
+    ;;
+  *                 ) 
+    echo "Sorry, $SCRIPTNAME does not support $REPO_PROTO protocol"
+    cleanup 1
+esac
+# Ensure we have the trailing /
+[[ $REAL_REPOBASE != */ ]] && REAL_REPOBASE="$REAL_REPOBASE"/
+}
+
+check_LTSS_support () {
+# Check for access to LTSS repository and set flag if so
+for ((IX=0; IX < ${#LTSS_PRODUCTS[*]}; IX++)) ; do
+  if [[ $1 = ${LTSS_PRODUCTS[$IX]} ]] ; then
+    return 0
+  fi
+done
+return 1
+}
+
+check_LTSS_access () {
+# Check for access to LTSS repository and set flag if so
+REPO_URL=$1
+case $REPO_PROTO in 
+  http|https)
+    if [[ `$CURLCMD -sL -w "%{http_code}\\n" $REPO_URL \
+          -o /dev/null` -eq 200 ]] ; then
+      return 0
+    fi
+    ;;
+  local|nfs)
+    if ls $REPO_URL > /dev/null 2>&1 ; then
+      return 0
+    fi
+    ;;
+esac  
+return 1
+}
+
+build_repo_list () {
+# Create list of applicable repositories for each product in $PRODUCTS[]
+# echo "Installed products :"
+push_output "0" "Installed products :"
+unset repos
+REPO_IX=0
+# Read a product record from $PRODUCTS[] array and set up 
+# parent repository directories in REPOS[]
+for ((PRODUCTS_IX=0; PRODUCTS_IX < ${#PRODUCTS[*]}; PRODUCTS_IX++)) ; do
+  PRODUCT=`echo ${PRODUCTS[PRODUCTS_IX]}|cut -d'#' -f1`
+  PRODUCT_VER=`echo ${PRODUCTS[PRODUCTS_IX]}|cut -d'#' -f2`
+  PRODUCT_SP=`echo ${PRODUCTS[PRODUCTS_IX]}|cut -d'#' -f3`
+  PRODUCT_ARCH=`echo ${PRODUCTS[PRODUCTS_IX]}|cut -d'#' -f4`
+  PRODUCT_LONG=`echo ${PRODUCTS[PRODUCTS_IX]}|cut -d'#' -f5`
+  PRODUCT_SUP=`echo ${PRODUCTS[PRODUCTS_IX]}|cut -d'#' -f6`
+  # New top level directory from SCC in $MirrorTo on update servers
+  # Handle inconsistency in whether SP is mentioned in products database
+  unset REPO_SP_STRING REPOLIST
+  if [[ `echo $PRODUCT_LONG|grep SP` ]] ; then
+    PRODUCT_LONG_WO_SP=`echo $PRODUCT_LONG|sed 's/ SP.//g'`
+  else
+    PRODUCT_LONG_WO_SP=$PRODUCT_LONG
+  fi
+  if [[ $PRODUCT_SP -ne 0 ]] ; then
+    REPO_SP_STRING="-SP"$PRODUCT_SP
+  fi
+  NICE_PROD_NAME="$PRODUCT_LONG_WO_SP `echo $REPO_SP_STRING|tr -d '-'`"
+  push_output "0" "$NICE_PROD_NAME"
+  case $PRODUCT in
+    SDK|SMT         ) REPO_PRODUCT_FULL="SLE"$PRODUCT_VER"-"$PRODUCT\
+$REPO_SP_STRING
+                      if [[ $PRODUCT_VER -ge 12 ]] ; then
+                        POOL_REPO="SLE-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING\
+"-Pool"
+                        UPDATES_REPO="SLE-"\
+$PRODUCT$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                        sle12_repo_product_setup $PRODUCT
+                      else
+                        REPO_PRODUCT="SLE"$PRODUCT_VER"-"$PRODUCT
+                      fi
+    ;;
+    HA*             ) REPO_PRODUCT_FULL="SLE"$PRODUCT_VER"-"$PRODUCT\
+$REPO_SP_STRING
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING\
+"-Pool"
+                        UPDATES_REPO="SLE-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING\
+"-Updates"
+                        sle12_repo_product_setup $PRODUCT
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Product-HA"$PRODUCT_VER$REPO_SP_STRING\
+"-Pool"
+                        UPDATES_REPO="SLE-Product-HA"\
+$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                        sle12_repo_product_setup $PRODUCT
+                      else
+                        REPO_PRODUCT="SLE"$PRODUCT_VER"-"$PRODUCT
+                      fi
+    ;;
+
+    SLES            ) REPO_PRODUCT_FULL=$PRODUCT$PRODUCT_VER$REPO_SP_STRING
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLES"$PRODUCT_VER$REPO_SP_STRING"-Pool"
+                        UPDATES_REPO="SLES"$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                        sle12_repo_product_setup $PRODUCT
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Product-SLES"$PRODUCT_VER$REPO_SP_STRING"-Pool"
+                        UPDATES_REPO="SLE-Product-SLES"$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                        sle12_repo_product_setup $PRODUCT
+                      else
+                        REPO_PRODUCT=$PRODUCT
+                      fi
+    ;;
+    MOD_BASESYSTEM       ) REPO_PRODUCT_FULL="SLE-Module-Basesystem"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Basesystem$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-Basesystem$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_CERT        ) REPO_PRODUCT_FULL="SLE-Module-Certifications"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Certifications12-Pool"
+                      UPDATES_REPO="SLE-Module-Certifications12-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_CLOUD       ) REPO_PRODUCT_FULL="SLE-Module-Public-Cloud"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Pool"
+                      UPDATES_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_CONT        ) REPO_PRODUCT_FULL="SLE-Module-Containers"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_DESKTOP     ) REPO_PRODUCT_FULL="SLE-Module-Desktop-Applications"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Desktop-Applications$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-Desktop-Applications$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_DEV_TOOLS     ) REPO_PRODUCT_FULL="SLE-Module-Development-Tools"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Development-Tools$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-Development-Tools$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_HPC         ) REPO_PRODUCT_FULL="SLE-Module-HPC"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-HPC12-Pool"
+                      UPDATES_REPO="SLE-Module-HPC12-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_LEGACY      ) REPO_PRODUCT_FULL="SLE-Module-Legacy"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Legacy$PRODUCT_VER-Pool"
+                      UPDATES_REPO="SLE-Module-Legacy$PRODUCT_VER-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_PYTHON2      ) REPO_PRODUCT_FULL="SLE-Module-Python2"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Python2-$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-Python2-$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_SRV_APPS    ) REPO_PRODUCT_FULL="SLE-Module-Server-Applications"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Server-Applications$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-Server-Applications$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_SYSMGMT     ) REPO_PRODUCT_FULL="SLE-Module-Adv-Systems-Management"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Adv-Systems-Management12-Pool"
+                      UPDATES_REPO="SLE-Module-Adv-Systems-Management12-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_TOOLCH       ) REPO_PRODUCT_FULL="SLE-Module-Toolchain"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Toolchain12-Pool"
+                      UPDATES_REPO="SLE-Module-Toolchain12-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_WEBSCR      ) REPO_PRODUCT_FULL="SLE-Module-Web-Scripting"\
+$PRODUCT_VER$REPO_SP_STRING
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-Module-Web-Scripting12-Pool"
+                        UPDATES_REPO="SLE-Module-Web-Scripting12-Updates"
+                      else 
+                        POOL_REPO="SLE-Module-Web-Scripting$PRODUCT_VER$REPO_SP_STRING-Pool"
+                        UPDATES_REPO="SLE-Module-Web-Scripting$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      fi
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    PKGHUB          ) REPO_PRODUCT_FULL="SUSE-Package-Hub"\
+$PRODUCT_VER$REPO_SP_STRING
+                      sle12_repo_product_setup $PRODUCT
+                      # Since SUSE PackageHub repo setup is so untraditional
+                      # all is handled further down
+                      : 
+    ;;
+    SES             ) REPO_PRODUCT_FULL="SUSE-Enterprise-Storage"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SUSE-Enterprise-Storage-"$PRODUCT_VER"-Pool"
+                      UPDATES_REPO="SUSE-Enterprise-Storage-"$PRODUCT_VER"-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    SOC             ) REPO_PRODUCT_FULL="SUSE-OpenStack-Cloud"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SUSE-OpenStack-Cloud-"$PRODUCT_VER"-Pool"
+                      SOC_POOL_REPO="OpenStack-Cloud"
+                      UPDATES_REPO="SUSE-OpenStack-Cloud-"$PRODUCT_VER"-Updates"
+                      SOC_UPDATES_REPO="OpenStack-Cloud"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    WE                ) REPO_PRODUCT_FULL="SLE"$PRODUCT_VER"-"$PRODUCT\
+$REPO_SP_STRING
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING"-Pool"
+                        UPDATES_REPO="SLE-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                      else
+                        POOL_REPO="SLE-Product-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING"-Pool"
+                        UPDATES_REPO="SLE-Product-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                      fi
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+
+                  * ) echo "Sorry, $PRODUCT_LONG is not supported."
+                      echo "Exiting..."
+                      cleanup 1
+  esac
+  case $PRODUCT_VER in 
+    10 ) REPO_ARCH="sles-"$PRODUCT_VER"-"$PRODUCT_ARCH
+    ;;
+    11 ) REPO_ARCH="sle-"$PRODUCT_VER"-"$PRODUCT_ARCH
+    ;;
+    6|7|8|9|12|15 ) REPO_ARCH=$PRODUCT_ARCH
+  esac
+  case $PRODUCT in 
+  SLES ) 
+    if [[ $PRODUCT_VER -eq 10 && $PRODUCT_SP -eq 1 ]] ; then
+      REPOLIST="$REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -eq 10  &&  $PRODUCT_SP -ge 2 ]] || \
+      [[ $PRODUCT = "SLES" && $PRODUCT_VER -eq 11 && $PRODUCT_SP -le 1 ]]
+    then
+      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 2 ]] ; then
+        REPOLIST="$REPO_PRODUCT"11-SP1-Pool" $REPO_PRODUCT"11-SP1-Updates" \
+$REPO_PRODUCT_FULL"-Core" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 3 ]] ; then
+        REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 4 ]] ; then
+        REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -ge 12 ]] ; then
+      REPOLIST="$POOL_REPO $UPDATES_REPO"
+    fi
+    ;;
+  MOD_* )
+    if [[ $PRODUCT_VER -ge 12 ]] ; then
+      REPOLIST="$POOL_REPO $UPDATES_REPO"
+    fi
+    ;;
+  PKGHUB )
+    if [[ $PRODUCT_VER -eq 12 ]] ; then
+      REPOLIST="SUSE-PackageHub-$PRODUCT_VER$REPO_SP_STRING-Pool \
+SUSE-PackageHub-$PRODUCT_VER$REPO_SP_STRING-Standard-Pool"
+    fi
+    if [[ $PRODUCT_VER -ge 15 ]] ; then
+      # SLE 15+ - tag along the subpackages
+      REPOLIST="\
+SUSE-PackageHub-$PRODUCT_VER$REPO_SP_STRING-Pool \
+SUSE-PackageHub-$PRODUCT_VER$REPO_SP_STRING-Backports-Pool \
+SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Pool \
+SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Updates"
+    fi
+    ;;
+  HA*|WE ) 
+    if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -ge 1 ]] ; then
+      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -ge 12 ]] ; then
+      REPOLIST="$POOL_REPO $UPDATES_REPO"
+    fi
+    ;;
+  SES|SOC )
+    REPOLIST="$POOL_REPO $UPDATES_REPO"
+    ;;
+  SMT  ) 
+    if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -eq 1 ]] ; then
+      # Special setup for SMT 11 SP1
+      # Product has no Pool and updates are published through SLE11-SMT-Updates
+      REPO_PRODUCT_FULL="SLE11-"$PRODUCT
+      REPOLIST="$REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -eq 11 &&  $PRODUCT_SP -ge 2 ]] ; then
+      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
+    fi
+    ;;
+  SDK  ) 
+    if [[ $PRODUCT_VER -eq 10 && $PRODUCT_SP -ge 4 ]] || \
+       [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -le 1 ]] || \
+       [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -ge 3 ]] ; then
+      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 2 ]] ; then
+      REPOLIST="$REPO_PRODUCT"-SP1-Pool" $REPO_PRODUCT"-SP1-Updates" \
+$REPO_PRODUCT_FULL"-Core" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -ge 3 ]] ; then
+      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
+    elif [[ $PRODUCT_VER -ge 12 ]] ; then
+      REPOLIST="$POOL_REPO $UPDATES_REPO"
+    fi
+    ;;
+  *    ) 
+    echo "Repo setup blooper - exiting..."
+    echo "REPO_PRODUCT  : $REPO_PRODUCT"
+    echo "PRODUCT_VER   : $PRODUCT_VER"
+    echo "PRODUCT_SP    : $PRODUCT_SP"
+    cleanup 1
+  esac
+  for REPO in $REPOLIST ; do 
+    get_scc_base $REPO
+    if [[ $PRODUCT_VER -ge 12 ]] ; then
+      if `echo $REPO|grep -qi package-hub` ||
+         `echo $REPO|grep -qi packagehub` ; then
+        # SUSE Package Hub needs special treatment
+        if `echo $REPO|grep -qi standard-pool` ||
+           `echo $REPO|grep -qi backports-pool` ; then
+          # SLE 12  : Standard-Pool is  == Updates  
+          # SLE 15+ : Backports-Pool is == Updates
+          add_repo $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$REPO_ARCH"/standard/repodata/" \
+$REPO $REPO_ARCH $PRODUCT_VER
+        elif `echo $REPO|grep -qi subpackages` &&
+             `echo $REPO|grep -qi pool` ; then
+          # SLE15+ has Subpackages as well (containing built, but unpublished packages from SLE)
+          add_repo $REAL_REPOBASE$SCC_BASE\
+"Products/SLE-Module-Packagehub-Subpackages/$PRODUCT_VER$REPO_SP_STRING\
+/$REPO_ARCH/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+        elif `echo $REPO|grep -qi subpackages` &&
+             `echo $REPO|grep -qi updates` ; then
+          add_repo $REAL_REPOBASE$SCC_BASE\
+"Updates/SLE-Module-Packagehub-Subpackages/$PRODUCT_VER$REPO_SP_STRING\
+/$REPO_ARCH/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+        else
+          # Not yet caught must be pool        
+          # Pool is == Pool  
+          add_repo $REAL_REPOBASE$SCC_BASE"Backports/SLE-"\
+$PRODUCT_VER$REPO_SP_STRING"_"$REPO_ARCH"/product/repodata/" \
+$REPO $REPO_ARCH $PRODUCT_VER
+        fi
+      else
+        if `echo $REPO|grep -qi pool` ; then
+          add_repo $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+        elif `echo $REPO|grep -q Updates` ; then
+          add_repo $REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+        fi
+      fi
+    elif echo $REPO_PRODUCT | grep -qi openstack-cloud ; then
+      # Hack for SUSE OpenStack Cloud, since it is not SLE.
+      if `echo $REPO|grep -q Pool` ; then
+        add_repo $REAL_REPOBASE$SCC_BASE"Products/"$SOC_POOL_REPO"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+      elif `echo $REPO|grep -q Updates` ; then
+        add_repo $REAL_REPOBASE$SCC_BASE"Updates/"$SOC_UPDATES_REPO"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+      fi
+    elif echo $REPO | grep -qi storage ; then
+      # Hack for SUSE Enterprise Storage, since it breaks the naming convention.
+      if `echo $REPO|grep -qi pool` ; then
+        add_repo $REAL_REPOBASE$SCC_BASE"Products/Storage/"$PRODUCT_VER"/"\
+$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+      elif `echo $REPO|grep -q Updates` ; then
+        add_repo $REAL_REPOBASE$SCC_BASE"Updates/Storage/"$PRODUCT_VER"/"\
+$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+      fi
+    else
+      add_repo $REAL_REPOBASE$SCC_BASE$REPO"/"$REPO_ARCH"/repodata/" \
+$REPO $REPO_ARCH $PRODUCT_VER
+    fi
+  done
+  # Check if LTSS repository for the product exists
+  if [[ $PRODUCT = "SLES" && ! $IGNORE_LTSS ]] ; then
+    if $(check_LTSS_support $PRODUCT_SUP) ; then
+      # Check if we can access it 
+      if [[ $PRODUCT_VER -eq 12 ]] ; then
+        LTSS_REPO_URL=$REAL_REPOBASE$SCC_BASE"Updates/SLE-SERVER/"\
+$PRODUCT_VER$REPO_SP_STRING-LTSS"/"$REPO_ARCH"/update/repodata/"
+      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+        LTSS_REPO_URL=$REAL_REPOBASE$SCC_BASE"Updates/SLE-Product-SLES/"\
+$PRODUCT_VER$REPO_SP_STRING-LTSS"/"$REPO_ARCH"/update/repodata/"
+      else
+        LTSS_REPO_URL=$REAL_REPOBASE$SCC_BASE$REPO_PRODUCT_FULL\
+"-LTSS-Updates/"$REPO_ARCH"/repodata/"
+      fi
+      if $(check_LTSS_access $LTSS_REPO_URL) ; then
+        # Finally check if it actually contains anything at this point in time
+        check_if_repo_is_empty "$LTSS_REPO_URL" "$REPO_PRODUCT_FULL\
+"-LTSS-Updates"" "$REPO_ARCH"
+        if ! [ $REPO_IS_EMPTY ] ; then
+          # Hook LTSS repo into the list of repositories to search 
+          add_repo $LTSS_REPO_URL $REPO_PRODUCT_FULL"-LTSS-Updates" \
+$REPO_ARCH $PRODUCT_VER
+        else
+          :
+          # Skipping $REPO since it is empty
+        fi
+      fi
+    fi
+  fi
+done
+push_output "0" ""
+}
+
+unpack_repodata () {
+# Unpack and rename $FILELISTS_XML_ARCHV for a repository
+if ! gunzip -f $FILELISTS_XML_ARCHV ; then
+  echo "Error unpacking repodata file $REPO_URL$FILELISTS_XML_ARCHV"
+  echo "Probably due to inconsistent metadata"
+  echo "Exiting"
+  cleanup 1
+fi
+mv $FILELISTS_XML $REPO"_"$FILELISTS_XML
+REPODATA[$REPODATA_IX]=$REPO"_"$FILELISTS_XML
+((REPODATA_IX++))
+}
+
+stuff_multiversion_pkg_into_array () {
+# Add a package to PKG_FILES 
+# Split up the version part of the version string 
+# to make it comparable
+split_version_string $THIS_PKG_VER 1
+THIS_PKG_VER_SPLIT=$SPLIT_VER_STRING
+# Split up the release part of the version string 
+# to make it comparable
+split_version_string $THIS_PKG_REL 1
+THIS_PKG_REL_SPLIT=$SPLIT_VER_STRING
+# Add the package to the array
+PKG_FILES[$PKG_FILE_IX]="$THIS_PKG $THIS_PKG_VER \
+$THIS_PKG_REL dummy"#"$THIS_PKG_VER_SPLIT"#"$THIS_PKG_REL_SPLIT"
+((PKG_FILE_IX++))
+}
+
+is_multiver_pkg () {
+MULTIVER_PKGS_IX=0
+while [ $MULTIVER_PKGS_IX -lt ${#MULTIVER_PKGS[*]} ] ;do
+  if [[ ${MULTIVER_PKGS[$MULTIVER_PKGS_IX]} == $1 ]] ; then
+    return 0
+  fi
+  ((MULTIVER_PKGS_IX++))
+done
+return 1
+}
+
+find_installed_pkgs () {
+# Create workfile (TEMPFILE2) with installed packages and their versions
+echo -e "\nCreating workfile with installed packages and their versions..."
+rm $TEMPFILE2
+touch $TEMPFILE2
+VERSION_START_POS=`grep -A1 'rpm -qa --queryformat \"\%-35{NAME' rpm.txt \
+  |tail -1|grep -b -o VERSION |cut -d':' -f1`
+DISTRO_END_POS=$VERSION_START_POS
+((VERSION_START_POS++))
+DISTRO_START_POS=`grep -A1 'rpm -qa --queryformat \"\%-35{NAME' rpm.txt \
+  |tail -1|grep -b -o DISTRIBUTION |cut -d':' -f1`
+((DISTRO_START_POS++))
+sed -n '/rpm -qa --queryformat \"\%-35{NAME/,/^$/p' rpm.txt \
+  |grep -Ev '^NAME|^$' \
+  |grep -E "SUSE Linux Enterprise $BASE_PRODUCT_VER|SLE\_10" > $TEMPFILE1
+# Since supportutils may have different distro flag, it needs a special check
+# Check if we have supportutils from this SLE version
+WRONG_SUPPORTUTILS_LINE=`grep 'supportutils' $TEMPFILE1 2>/dev/null \
+  |grep 'Novell'`
+if [[ -n $WRONG_SUPPORTUTILS_LINE ]] && [ $BASE_PRODUCT_VER -gt 10 ] ; then
+  INSTALLED_PKG_VER=`echo "$WRONG_SUPPORTUTILS_LINE" \
+    |cut -c$VERSION_START_POS-|tr -d ' '`
+  INSTALLED_PKG_DISTRO=`echo "$WRONG_SUPPORTUTILS_LINE" \
+    |cut -c$DISTRO_START_POS-$DISTRO_END_POS|sed -e 's/[[:space:]]*$//'`
+  push_output "2" "- supportutils package $INSTALLED_PKG_VER is from a \
+different SLE product ($INSTALLED_PKG_DISTRO)"
+  push_output "2" "  Please install the correct version for $BASE_PRODUCT_LONG"
+fi
+echo > $TEMPFILE3
+while read line ; do
+  INSTALLED_PKG_NAME=`echo $line|cut -d' ' -f1`
+  INSTALLED_PKG_VER=`echo "$line"|cut -c$VERSION_START_POS-|tr -d ' '`
+  echo $INSTALLED_PKG_NAME $INSTALLED_PKG_VER>> $TEMPFILE2
+  echo $INSTALLED_PKG_NAME>> $TEMPFILE3
+done < "$TEMPFILE1"
+# Find multiversion packages
+read -a MULTIVER_PKGS <<< `sort $TEMPFILE3 | uniq --repeated`
+sort -r $TEMPFILE2 > $TEMPFILE1
+if [ ${#MULTIVER_PKGS[*]} -gt 0 ] ; then
+  rm $TEMPFILE2
+  touch $TEMPFILE2
+  unset PREV_PKG MULTIVER_PKG_IN_PROGRESS PREV_LINE
+  REPO_FILE_IX=0
+  FIRST_READ=y
+  while read line ; do
+    THIS_PKG=`echo $line|cut -d' ' -f1`
+    if is_multiver_pkg "$THIS_PKG" ; then
+      if [[ $THIS_PKG != $PREV_PKG ]] && [ $MULTIVER_PKG_IN_PROGRESS ] ; then
+        PKG_HANDLED=N
+        find_newest_repo_pkg
+        unset PKG_FILES MULTIVER_PKG_IN_PROGRESS
+        PKG_FILE_IX=0
+        NEWEST_INST_PKG_LINE=`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f1`" "\
+`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f2`"-"\
+`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f3`
+        NEWEST_INST_PKG_VER_FULL=`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f2`"-"\
+`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f3`
+        echo $NEWEST_INST_PKG_LINE >> $TEMPFILE2
+        push_output "0" "We consider $NEWEST_INST_PKG_VER_FULL to be the latest, \
+but please verify manually"
+      fi
+      if [[ $THIS_PKG != $PREV_PKG ]] && ! [ $MULTIVER_PKG_IN_PROGRESS ]; then   
+        # First occurence of a multiversion package
+        MULTIVER_PKG_IN_PROGRESS=y
+        THIS_PKG_VER=`echo $line|cut -d' ' -f2|cut -d'-' -f1`
+        THIS_PKG_REL=`echo $line|cut -d' ' -f2|cut -d'-' -f2`
+        stuff_multiversion_pkg_into_array
+        push_output "0" " "
+        push_output "0" "Warning : Multiple versions of package $THIS_PKG \
+are installed"
+      elif [[ $THIS_PKG == $PREV_PKG ]] || [ $MULTIVER_PKG_IN_PROGRESS ]; then   
+        # Subsequent instances of multiversion package
+        THIS_PKG_VER=`echo $line|cut -d' ' -f2|cut -d'-' -f1`
+        THIS_PKG_REL=`echo $line|cut -d' ' -f2|cut -d'-' -f2`
+        stuff_multiversion_pkg_into_array
+      fi
+    elif [[ $THIS_PKG != $PREV_PKG ]] && [ $MULTIVER_PKG_IN_PROGRESS ] ; then
+      # Next package after multiversion package 
+      PKG_HANDLED=N
+      find_newest_repo_pkg
+      unset PKG_FILES MULTIVER_PKG_IN_PROGRESS
+      PKG_FILE_IX=0
+      NEWEST_INST_PKG_LINE=`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f1`" "\
+`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f2`"-"\
+`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f3`
+      NEWEST_INST_PKG_VER_FULL=`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f2`"-"\
+`echo $LATEST_PKG_FILE_LINE |cut -d' ' -f3`
+      echo $NEWEST_INST_PKG_LINE >> $TEMPFILE2
+      push_output "0" "We consider $NEWEST_INST_PKG_VER_FULL to be the latest, \
+but please verify manually"
+    fi    
+    if ! [ $MULTIVER_PKG_IN_PROGRESS ]; then   
+      echo $line >> $TEMPFILE2
+    fi
+    PREV_PKG=$THIS_PKG
+    PREV_LINE=$line
+  done < "$TEMPFILE1"
+  if echo ${MULTIVER_PKGS[*]}|grep -Eq 'kernel-default|kernel-xen' ; then 
+    push_output "0" "Running kernel is "`grep -A1 "/bin/uname" \
+    $ENVFILE |tac|head -1|cut -d' ' -f3`
+  fi
+else
+  cp $TEMPFILE1 $TEMPFILE2
+fi
+NO_OF_INSTALLED_PKGS=`cat $TEMPFILE2|wc -l`
+if [ $BASE_PRODUCT_SP -ge 1 ] ; then 
+  echo "Number of SUSE Linux Enterprise $BASE_PRODUCT_VER SP$BASE_PRODUCT_SP \
+packages installed on $HOSTNAME : $NO_OF_INSTALLED_PKGS"
+else
+  echo "Number of SUSE Linux Enterprise $BASE_PRODUCT_VER \
+packages installed on $HOSTNAME : $NO_OF_INSTALLED_PKGS"
+fi
+}
+
+split_frag () {
+# Split a subpart of a version substring (string between two dots)
+# into comparable substrings if mixed character types
+# IN is the version substring - e.g. sr12a74
+IN=$VP
+unset OUT
+DONE=N
+# As long as the remainding part of the string is non-empty
+while [ -n $IN ] && [[ $DONE != "Y" ]]; do
+  if [ -z `echo $IN| tr -d "[:digit:]"` ]; then
+    DONE=Y
+    OUT=$IN
+  elif [ -z `echo $IN|tr -d "[:alpha:]"` ]; then
+    DONE=Y
+    OUT=$IN
+    # Check that input is only alphanumeric
+  elif [ -z `echo $IN|tr -d "[:alnum:]"` ]; then
+    # Further splitup is needed
+    while [ -n $IN ] && [[ $DONE != "Y" ]]; do
+      FIRST=`echo ${IN:0:1}`
+      if [ $FIRST -eq $FIRST ] 2>/dev/null ; then
+        # If first char is numeric, insert ; before first alpha char
+        W2=$(echo $IN |sed 's/\([[:alpha:]]\+\)/;\1/')
+      else 
+        # Insert ; before first digit
+        W2=$(echo $IN |sed 's/\([[:digit:]]\+\)/;\1/')
+      fi
+      FRAG=$(echo $W2|cut -d';' -f1)
+      FRAG_LEN=`echo ${#FRAG}`
+      OUT=$OUT" "$FRAG
+      IN=$(echo ${IN:$FRAG_LEN})
+      if [ -z $IN ] ; then
+        # Rest of IN is either numeric or alpha
+        DONE="Y"
+      fi
+    done
+  fi
+  VP=`echo $OUT|cut -f2`
+done
+}
+
+do_split () {
+# Split a version string into comparable substrings
+# First translate -._~ into spaces
+SPLIT_IN=`echo $VER|tr '\-\.\_\~\+' '  '`
+NO_SPLIT_PARTS=`echo $SPLIT_IN|wc -w`
+unset SPLIT_OUT
+for i in `seq 1 $NO_SPLIT_PARTS`; do
+  VP=`echo $SPLIT_IN | cut -d' ' -f$i`
+  # Is this a mix of numbers and letters ?
+  if [ -z `echo $VP|tr -d "[:alnum:]"` ]; then
+    # Alphanumeric fragment. Split it up
+    split_frag
+  fi
+  if [ $i -eq 1 ]; then
+    # No space before first fragment
+    SPLIT_OUT=$VP
+  else
+    # Otherwise pad with a space
+    SPLIT_OUT=`echo $SPLIT_OUT" "$VP`
+  fi
+done
+}
+
+do_compare () {
+# Compare two version substrings
+# $1 is current/base version/release string
+# $2 is challenging version/release string
+# Returns in COMP_RES one of the values :
+# 0 - strings match
+# 1 - $1 is highest
+# 2 - $2 is highest
+if [ "$2" -eq "$2" ] 2>/dev/null && \
+   [ "$1" -eq "$1" ] 2>/dev/null ; then
+  # Numeric
+  if [ $2 -eq $1 ] ; then
+    # Match 
+    COMP_RES=0
+  elif [ $2 -lt $1 ] ; then
+    # Current/$1 is newer than challenger/$2
+    COMP_RES=1
+  else
+    # Challenger/$2 is newer than current/$2
+    COMP_RES=2
+  fi
+else
+  # Not numeric
+  if [[ $2 = $1 ]] ; then
+    # Match
+    COMP_RES=0
+  elif [[ $2 < $1 ]] ; then
+    # Current/$1 is newer than challenger/$2
+    COMP_RES=1
+  else
+    # Challenger/$2 is newer than current/$1
+    COMP_RES=2
+  fi
+fi
+}
+
+compare_version () {
+# Compare two version substrings
+# If version is equal, check if the number of frags in strings match. 
+# If not, then the string with the highest number of frags is the highest ver.
+CURR_STR=$1
+CHAL_STR=$2
+CURR_NO_OF_SPLIT_PARTS=`echo $CURR_STR|cut -d'#' -f1`
+CHAL_NO_OF_SPLIT_PARTS=`echo $CHAL_STR|cut -d'#' -f1`
+for VER_SPLIT_PART_NO in $(seq 1 $CHAL_NO_OF_SPLIT_PARTS) ; do
+  if [ $VER_SPLIT_PART_NO -gt $CURR_NO_OF_SPLIT_PARTS ] ; then
+    # More parts in parts in challenger --> challenger is newest
+    COMP_RES=2
+    unset MUST_CHECK_RELEASE
+    break  
+  else
+    CURR_VP=`echo $CURR_STR|cut -d'#' -f2|cut -d' ' -f$VER_SPLIT_PART_NO \
+      |tr -d ' '`
+    CHAL_VP=`echo $CHAL_STR|cut -d'#' -f2|cut -d' ' -f$VER_SPLIT_PART_NO \
+      |tr -d ' '`
+    do_compare $CURR_VP $CHAL_VP
+    if [ $COMP_RES -ge 1 ] ; then
+      # Current and challenger differ
+      unset MUST_CHECK_RELEASE
+      break  
+    else
+      # Match - need to check 
+      if [ $VER_SPLIT_PART_NO -eq $CURR_NO_OF_SPLIT_PARTS ] &&
+         [ $CURR_NO_OF_SPLIT_PARTS -lt $CHAL_NO_OF_SPLIT_PARTS ] ; then
+        # More parts in challenger  --> challenger is newest
+        COMP_RES=2
+        unset MUST_CHECK_RELEASE
+        break
+      elif [ $VER_SPLIT_PART_NO -eq $CHAL_NO_OF_SPLIT_PARTS ] &&
+           [ $CURR_NO_OF_SPLIT_PARTS -gt $CHAL_NO_OF_SPLIT_PARTS ] ; then
+        # More parts in current  --> current is newest
+        COMP_RES=1
+        unset MUST_CHECK_RELEASE
+        break
+      fi
+    fi
+  fi
+done
+}
+
+compare_release () {
+# Compare two release substrings
+CURR_STR=$1
+CHAL_STR=$2
+CURR_NO_OF_SPLIT_PARTS=`echo $CURR_STR|cut -d'#' -f1`
+CHAL_NO_OF_SPLIT_PARTS=`echo $CHAL_STR|cut -d'#' -f1`
+for VER_SPLIT_PART_NO in $(seq 1 $CURR_NO_OF_SPLIT_PARTS) ; do
+  if [ $VER_SPLIT_PART_NO -gt $CURR_NO_OF_SPLIT_PARTS ] ; then
+    # More parts in parts in challenger --> challenger is newest
+    COMP_RES=2
+    break  
+  else
+    CURR_VP=`echo $CURR_STR|cut -d'#' -f2|cut -d' ' -f$VER_SPLIT_PART_NO \
+      |tr -d ' '`
+    CHAL_VP=`echo $CHAL_STR|cut -d'#' -f2|cut -d' ' -f$VER_SPLIT_PART_NO \
+      |tr -d ' '`
+    do_compare $CURR_VP $CHAL_VP
+    if [ $COMP_RES -ge 1 ] ; then
+      # Current and challenger differ
+      break  
+    else
+      # Match - need to check 
+      if [ $VER_SPLIT_PART_NO -eq $CURR_NO_OF_SPLIT_PARTS ] &&
+         [ $CURR_NO_OF_SPLIT_PARTS -lt $CHAL_NO_OF_SPLIT_PARTS ] ; then
+        # More parts in challenger  --> challenger is newest
+        COMP_RES=2
+        break
+      elif [ $VER_SPLIT_PART_NO -eq $CHAL_NO_OF_SPLIT_PARTS ] &&
+           [ $CURR_NO_OF_SPLIT_PARTS -gt $CHAL_NO_OF_SPLIT_PARTS ] ; then
+        # More parts in current  --> current is newest
+        COMP_RES=1
+        break
+      fi
+    fi
+  fi
+done
+}
+
+find_newest_pkg_file_array () {
+# Find the newest one of the package files in PKG_FILES[*] and
+# return it in $LATEST_PKG_FILE_LINE
+# if [ ${#PKG_FILES[*]} -gt 1 ] ; then
+# we have more than one package file in the repos
+MUST_CHECK_RELEASE=Y
+PKG_FILE_VER_SPLIT=`echo ${PKG_FILES[$PKG_FILE_IX]}|cut -d'#' -f2-3`
+OLD_PKG_VER_SPLIT=`echo $LATEST_PKG_FILE_LINE|cut -d'#' -f2-3`
+compare_version "$OLD_PKG_VER_SPLIT" "$PKG_FILE_VER_SPLIT"
+if [ $MUST_CHECK_RELEASE ] ; then 
+  # The version matched - compare release
+  PKG_FILE_REL_SPLIT=`echo ${PKG_FILES[$PKG_FILE_IX]}|cut -d'#' -f4-5`
+  OLD_PKG_REL_SPLIT=`echo $LATEST_PKG_FILE_LINE|cut -d'#' -f4-5`
+  compare_release "$OLD_PKG_REL_SPLIT" "$PKG_FILE_REL_SPLIT"
+fi
+if [ $COMP_RES -eq 2 ] ; then
+  # This package file is newer than the one in LATEST_PKG_FILE_LINE
+  PKG_FILE_VER=`echo ${PKG_FILES[$PKG_FILE_IX]}|cut -d'#' -f1`
+  LATEST_PKG_FILE_LINE=${PKG_FILES[$PKG_FILE_IX]}
+fi
+}
+
+compare_installed_available () {
+# Compare installed version with the latest one availble in the repositories
+LATEST_VER_SPLIT=`echo $LATEST_PKG_FILE_LINE|cut -d'#' -f2-3`
+split_version_string $INSTALLED_PKG_VER 1
+MUST_CHECK_RELEASE=Y
+compare_version "$SPLIT_VER_STRING" "$LATEST_VER_SPLIT"
+if [ $MUST_CHECK_RELEASE ] ; then 
+  # The version matched - compare release
+  split_version_string $INSTALLED_PKG_VER 2
+  INSTALLED_REL_SPLIT=$SPLIT_VER_STRING
+  PKG_FILE_REL_STR=`echo $LATEST_PKG_FILE_LINE|cut -d' ' -f3`
+  split_version_string $PKG_FILE_REL_STR 1
+  PKG_FILE_REL_SPLIT=$SPLIT_VER_STRING
+  compare_release "$INSTALLED_REL_SPLIT" "$PKG_FILE_REL_SPLIT"
+fi
+if [ $COMP_RES -eq 2 ] ; then
+  # Package file is newer than installed package
+  ((PKGS_TO_UPDATE++))
+  PKG_REPO=`echo $LATEST_PKG_FILE_LINE|cut -d'#' -f1|cut -d' ' -f4`
+  push_output "1" "$PKG_NAME $INSTALLED_PKG_VER $PKG_FILE_VER_FULL $PKG_REPO"
+elif [ $COMP_RES -eq 1 ] ; then
+  # Installed package is newer than package file
+  if [[ `echo $INSTALLED_PKG_VER|grep "\.PTF\."` ]] ; then
+    push_output "0" "$PKG_NAME $INSTALLED_PKG_VER is newer than what is \
+available in repositories ($PKG_FILE_VER_FULL)"
+    push_output "0" "Seems to be a PTF, so we ignore that"
+  else
+    push_output "2" "$PKG_NAME $INSTALLED_PKG_VER is newer than what is \
+available in repositories ($PKG_FILE_VER_FULL)"
+  fi
+fi
+}
+
+find_repo_pkgs_for_this () {
+# Build a list of available package files in repositories for this package
+PKG_FILE_IX=0
+for ((IX=0; IX < ${#REPOS[*]} ; IX++)) ; do  
+  REPO=`echo ${REPOS[$IX]}|cut -d' ' -f2`
+  ARCH=`echo ${REPOS[$IX]}|cut -d' ' -f3`
+  REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
+  # Get the latest version of the package from each of the 
+  # repository-filelists.xml files
+  if [ -r $DBDIR$REPO_CURRENT_PKGS ] ; then
+    REPO_PKG_LINE=`grep '^'"$PKG_NAME " $DBDIR$REPO_CURRENT_PKGS`
+  else
+    echo "$REPO broken - $DBDIR$REPO_CURRENT_PKGS does not exist"
+    cleanup 1
+  fi
+  if [ -n "$REPO_PKG_LINE" ] ; then
+    PKG_FILES[$PKG_FILE_IX]=$REPO_PKG_LINE
+    ((PKG_FILE_IX++))
+  fi
+done
+}
+
+check_pkgs () {
+# Cycle through all installed packages
+# Find lines with package files in $TEMPFILE3 that contain package name
+# from $TEMPFILE2 (installed packages)
+# Turn file with installed packages upside-down to handle overlapping names
+echo "Finding latest version of installed packages ..."
+tac $TEMPFILE2 > $TEMPFILE4
+PREV_PKG_NAME=""
+OVL_PKG_IX=0
+PKG_HANDLED="N"
+# Read a line from TEMPFILE4 with an installed package and its version
+while read line ; do
+  # Clear array
+  unset PKG_FILES
+  PKG_FILE_NO=0
+  PKG_NAME=`echo $line|cut -d' ' -f1`
+  if [ $PKG_NAME == 'libicu-suse64_2aaaa' ] ; then 
+    dump_array REPOS
+    set -x
+  fi
+  INSTALLED_PKG_VER=`echo $line|cut -d' ' -f2`
+  PKG_NAME_LN=`echo ${#PKG_NAME}`
+  PKG_DISTRO=`echo $line|cut -d' ' -f3-`
+  echo -ne "$SPACES\r"
+  echo -ne "$PKG_NAME\r"
+  find_repo_pkgs_for_this
+  if [ $PKG_NAME == 'libicu-suse64_2' ] ; then 
+    set +x
+    dump_array PKG_FILES
+    set -x
+  fi
+  # Set latest known version of this package to the installed
+  PKG_FILE_VER_FULL=$INSTALLED_PKG_VER
+  find_newest_repo_pkg
+  if [[ $INSTALLED_PKG_VER != $PKG_FILE_VER_FULL \
+        &&  $PKG_HANDLED = N  ]] ; then
+    # Installed package is not equal to the latest
+    compare_installed_available
+  fi
+  PREV_PKG_NAME=$PKG_NAME
+  PKG_HANDLED="N"
+  if [ $PKG_NAME == 'libicu-suse64_2' ] ; then 
+    set +x
+    dump_array PKG_FILES
+    cleanup 0
+  fi
+done < "$TEMPFILE4"
+echo -ne "$SPACES\r"
+}
+
+########################################################################
+#                                                                      #
+#                          Main routine                                #
+#                                                                      #
+########################################################################
+
+SCRIPTNAME=`basename $0`
+unset REPOBASE REPO_TO_FIX IGNORE_UNSUPPORTED MAINT_MODE IGNORE_LTSS \
+  NEW_LTSS_REPO_CACHE SCONFIG
+# Process the parameters
+if [ $# -lt 1 ]; then
+  usage_short
+  exit 0
+elif [ "$1" = "--help" ]; then
+  usage_short
+	exit 0
+else
+  while getopts "hilpr:smt:uw:" opt; do
+	  case $opt in
+		  h | \? )
+			  usage
+    	  usage_maint
+			  exit 0
+        ;;
+      i     )
+        IGNORE_UNSUPPORTED=Y
+        ;;  
+      l     )
+        IGNORE_LTSS=Y
+        ;;
+		  r     ) 
+        REPOBASE="$OPTARG"
+        ;;
+      s     )
+        show_supported
+        exit 0
+        ;;
+      t     )
+        USER_TEMPDIR=$OPTARG
+        ;;  
+      u     )
+        MAINT_MODE=y
+        MAINT_FLAG=u
+        ;;
+      w     )
+        MAINT_MODE=y
+        MAINT_FLAG=w
+        REPO_TO_FIX_ARG="$OPTARG"
+        ;;
+	  esac
+  done
+  if ! [ $MAINT_MODE ] ; then
+    eval SCONFIG='$'{$#}
+    if ! [ `echo $SCONFIG|egrep '\.txz|\.tbz'` ] ; then
+      echo "Invalid supportconfig archive specified : $SCONFIG"
+      usage
+      exit 1
+    fi
+  fi
+fi
+
+# Work file creation, misc init
+initialize
+# Maintenance mode
+if [ $MAINT_MODE ] ; then
+  chew_repo_base
+  case $MAINT_FLAG in
+    u ) refresh_repos
+        cleanup 0
+        ;;
+    w ) recreate_repo
+        cleanup 0
+        ;;
+    * ) echo "Unknown maintenance option"
+        usage_maint
+        cleanup 1
+  esac
+fi
+# Check if supportconfig is OK and unpack
+validate_archive
+# Build list of products in PRODUCTS[]
+detect_products
+#dump_array PRODUCTS
+# Mount repository URL if on NFS
+chew_repo_base
+# Populate REPOS[] with applicable repositories for each product in $PRODUCTS[]
+build_repo_list
+# Update current versions in repositories
+#dump_array REPOS
+#cleanup 0
+update_repo_cache
+# Returns installed package names and their version in $TEMPFILE2
+find_installed_pkgs
+# Loop through installed pkgs and find out if they are up to date
+check_pkgs
+# Display results
+write_output
+# Clean up work files and exit
+cleanup 0

@@ -3093,21 +3093,21 @@ while read line ; do
   unset PKG_FILES
   PKG_FILE_NO=0
   PKG_NAME=`echo $line|cut -d' ' -f1`
-  if [ $PKG_NAME == 'libicu-suse64_2aaaa' ] ; then 
-    dump_array REPOS
-    set -x
-  fi
+#  if [ $PKG_NAME == 'libicu-suse64_2aaaa' ] ; then 
+#    dump_array REPOS
+#    set -x
+#  fi
   INSTALLED_PKG_VER=`echo $line|cut -d' ' -f2`
   PKG_NAME_LN=`echo ${#PKG_NAME}`
   PKG_DISTRO=`echo $line|cut -d' ' -f3-`
   echo -ne "$SPACES\r"
   echo -ne "$PKG_NAME\r"
   find_repo_pkgs_for_this
-  if [ $PKG_NAME == 'libicu-suse64_2' ] ; then 
-    set +x
-    dump_array PKG_FILES
-    set -x
-  fi
+#  if [ $PKG_NAME == 'libicu-suse64_2' ] ; then 
+#    set +x
+#    dump_array PKG_FILES
+#    set -x
+#  fi
   # Set latest known version of this package to the installed
   PKG_FILE_VER_FULL=$INSTALLED_PKG_VER
   find_newest_repo_pkg
@@ -3118,11 +3118,11 @@ while read line ; do
   fi
   PREV_PKG_NAME=$PKG_NAME
   PKG_HANDLED="N"
-  if [ $PKG_NAME == 'libicu-suse64_2' ] ; then 
-    set +x
-    dump_array PKG_FILES
-    cleanup 0
-  fi
+#  if [ $PKG_NAME == 'libicu-suse64_2' ] ; then 
+#    set +x
+#    dump_array PKG_FILES
+#    cleanup 0
+#  fi
 done < "$TEMPFILE4"
 echo -ne "$SPACES\r"
 }

@@ -1170,12 +1170,19 @@ else
   updatesfile_useless
   echo "Check zypper setup on $HOSTNAME"
 fi
-# Handle out-of-product installations of cloud-init
+# Handle out-of-product installations of public cloud module packages
 if ! `echo ${PRODUCTS[*]}|grep -q MOD_CLOUD` && grep -q cloud-init rpm.txt ; then
   echo "Public Cloud Module packages are installed, but the module extension is not."
   echo "Adding the module"
-  add_product "MOD_CLOUD#"$BASE_PRODUCT_VER"#0#"\
-$BASE_PRODUCT_ARCH"#Public Cloud Module"$PRODUCT_VER" "$PRODUCT_SP"#MOD_CLOUD"$BASE_PRODUCT_VER
+  if [ $BASE_PRODUCT_VER -gt 12 ] ; then
+    # SLE 15+ : SP-specific module products
+    add_product "MOD_CLOUD#"$BASE_PRODUCT_VER"#$BASE_PRODUCT_SP#"\
+$BASE_PRODUCT_ARCH"#Public Cloud Module "$BASE_PRODUCT_VER" "$SP_STRING"#MOD_CLOUD"$BASE_PRODUCT_VER$SP_STRING
+  else
+    # SLE 12 : Modules are not SP-specific
+    add_product "MOD_CLOUD#"$BASE_PRODUCT_VER"#0#"\
+$BASE_PRODUCT_ARCH"#Public Cloud Module "$BASE_PRODUCT_VER"#MOD_CLOUD"$BASE_PRODUCT_VER
+  fi
 fi
 # Handle out-of-product installations of container module packages
 if ! `echo ${PRODUCTS[*]}|grep -q MOD_CONT` && grep -q '^docker' rpm.txt ; then

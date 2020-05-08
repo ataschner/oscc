@@ -1177,6 +1177,20 @@ if ! `echo ${PRODUCTS[*]}|grep -q MOD_CLOUD` && grep -q cloud-init rpm.txt ; the
   add_product "MOD_CLOUD#"$BASE_PRODUCT_VER"#0#"\
 $BASE_PRODUCT_ARCH"#Public Cloud Module"$PRODUCT_VER" "$PRODUCT_SP"#MOD_CLOUD"$BASE_PRODUCT_VER
 fi
+# Handle out-of-product installations of container module packages
+if ! `echo ${PRODUCTS[*]}|grep -q MOD_CONT` && grep -q '^docker' rpm.txt ; then
+  echo "Container Module packages are installed, but the module extension is not."
+  echo "Adding the module"
+  if [ $BASE_PRODUCT_VER -gt 12 ] ; then
+    # SLE 15+ : SP-specific module products
+    add_product "MOD_CONT#"$BASE_PRODUCT_VER"#$BASE_PRODUCT_SP#"\
+$BASE_PRODUCT_ARCH"#Container Module "$BASE_PRODUCT_VER" "$SP_STRING"#MOD_CONT"$BASE_PRODUCT_VER$SP_STRING
+  else
+    # SLE 12 : Modules are not SP-specific
+    add_product "MOD_CONT#"$BASE_PRODUCT_VER"#0#"\
+$BASE_PRODUCT_ARCH"#Container Module "$BASE_PRODUCT_VER"#MOD_CONT"$BASE_PRODUCT_VER
+  fi
+fi
 # Handle some situations where MOD_BASESYSTEM and MOD_SRV_APPS are not marked as installed on 15
 if [ $BASE_PRODUCT = "SLES" ] && [[ $BASE_PRODUCT_VER -ge 15 ]] ; then
   get_sp_string $BASE_PRODUCT_SP

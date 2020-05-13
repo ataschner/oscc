@@ -8,9 +8,9 @@
 # Known issues / TODO :
 # 
 #             - SOC 9 support is pending
-#             - SUSE Package Hub 15 SP2 support is pending
 #
 # Change log :
+# 2020-05-13  - Changes are now tracked in git
 # 2020-03-05  - Added support for 
 #             - SLES 15 SP2
 #             - SLES 15 is now LTSS
@@ -2383,14 +2383,24 @@ $PRODUCT_VER$REPO_SP_STRING
     ;;
     MOD_CLOUD       ) REPO_PRODUCT_FULL="SLE-Module-Public-Cloud"\
 $PRODUCT_VER$REPO_SP_STRING
-                      POOL_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Pool"
-                      UPDATES_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Updates"
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Pool"
+                        UPDATES_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Updates"
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Module-Public-Cloud"$PRODUCT_VER$REPO_SP_STRING"-Pool"
+                        UPDATES_REPO="SLE-Module-Public-Cloud"$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                      fi
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_CONT        ) REPO_PRODUCT_FULL="SLE-Module-Containers"\
 $PRODUCT_VER$REPO_SP_STRING
-                      POOL_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Pool"
-                      UPDATES_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-Module-Containers$PRODUCT_VER-Pool"
+                        UPDATES_REPO="SLE-Module-Containers$PRODUCT_VER-Updates"
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Pool"
+                        UPDATES_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      fi
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_DESKTOP     ) REPO_PRODUCT_FULL="SLE-Module-Desktop-Applications"\
@@ -2407,14 +2417,24 @@ $PRODUCT_VER$REPO_SP_STRING
     ;;
     MOD_HPC         ) REPO_PRODUCT_FULL="SLE-Module-HPC"\
 $PRODUCT_VER$REPO_SP_STRING
-                      POOL_REPO="SLE-Module-HPC12-Pool"
-                      UPDATES_REPO="SLE-Module-HPC12-Updates"
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-Module-HPC12-Pool"
+                        UPDATES_REPO="SLE-Module-HPC12-Updates"
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Module-HPC$PRODUCT_VER$REPO_SP_STRING-Pool"
+                        UPDATES_REPO="SLE-Module-HPC$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      fi
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_LEGACY      ) REPO_PRODUCT_FULL="SLE-Module-Legacy"\
 $PRODUCT_VER$REPO_SP_STRING
-                      POOL_REPO="SLE-Module-Legacy$PRODUCT_VER-Pool"
-                      UPDATES_REPO="SLE-Module-Legacy$PRODUCT_VER-Updates"
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-Module-Legacy$PRODUCT_VER-Pool"
+                        UPDATES_REPO="SLE-Module-Legacy$PRODUCT_VER-Updates"
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Module-Legacy$PRODUCT_VER$REPO_SP_STRING-Pool"
+                        UPDATES_REPO="SLE-Module-Legacy$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      fi
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_PYTHON2      ) REPO_PRODUCT_FULL="SLE-Module-Python2"\

@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.2
+Release:      0.3
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -22,6 +22,8 @@ Find out if the packages installed on the system, from which a supporconfig
 originates, are up to date with the current update repositories.
 For use with servers without access to any update repositories when the 
 supportconfig tarball is created like helpdesk functions and forensic analysis.
+The analysis requires access to a RMT or SMT server containing mirrors of the
+repositories applicable to the systems to be analysed.
 
 Authors:
 --------
@@ -69,6 +71,29 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+
+* Thu May 14 2020 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3-0.3
+
+* Wed May 13 2020 - Andreas Taschner <ataschner@suse.com>
+- Service Pack specific modules in SLE 15
+- Commit 8f9ad142
+
+* Wed May 13 2020 - Andreas Taschner <ataschner@suse.com>
+- Enable SUSE PackageHub 15 SP2
+- Commit 11ce20e5
+
+* Fri May 08 2020 - Andreas Taschner <ataschner@suse.com>
+- Enable SP-specific auto-add of Cloud module
+- Commit fb91eea7
+
+* Fri May 08 2020 - Andreas Taschner <ataschner@suse.com>
+- Disable debugging code
+- Commit fee760ce
+
+* Fri May 08 2020 - Andreas Taschner <ataschner@suse.com>
+- Introduce auto-adding of Container module
+- Commit da16a387
 
 * Thu Mar 05 2020 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.2

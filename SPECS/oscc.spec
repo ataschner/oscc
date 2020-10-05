@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.3
+Release:      0.4
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -71,6 +71,10 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+
+* Mon Oct 05 2020 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3.0.4
+- SLES 12 SP4 is now in LTSS
 
 * Thu May 14 2020 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.3

@@ -10,6 +10,7 @@
 #             - SOC 9 support is pending
 #
 # Change log :
+# 2020-08-27  - SLES 12 SP4 is now LTSS
 # 2020-05-13  - Changes are now tracked in git
 # 2020-03-05  - Added support for 
 #             - SLES 15 SP2
@@ -249,7 +250,7 @@ read -a SUPPORTED_PRODUCTS <<< $S_PRODUCTS
 
 # Supported LTSS products
 L_PRODUCTS="SLES15 \
-SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
+SLES12SP4 SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
 SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1 \
 SLES10SP4"
 read -a LTSS_PRODUCTS <<< $L_PRODUCTS
@@ -427,6 +428,7 @@ SOC_VERSIONS="6 7 8"
 
 # Supported LTSS repositories
 SCC_LTS_REPOS="SLES15-LTSS-Updates \
+SLES12-SP4-LTSS-Updates \
 SLES12-SP3-LTSS-Updates \
 SLES12-SP2-LTSS-Updates \
 SLES12-SP1-LTSS-Updates \

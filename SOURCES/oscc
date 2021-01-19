@@ -218,6 +218,11 @@ SUPPORTED_ARCHS="i586 x86_64"
 
 # Supported products
 S_PRODUCTS="\
+SLES15SP3 \
+MOD_BASESYSTEM15SP3 MOD_CLOUD15SP3 MOD_CONT15SP3 MOD_DESKTOP15SP3 \
+MOD_DEV_TOOLS15SP3 MOD_LEGACY15SP3 MOD_PYTHON215SP3 \
+MOD_SRV_APPS15SP3 MOD_WEBSCR15SP3 \
+PKGHUB15SP3 \
 SLES15SP2 \
 MOD_BASESYSTEM15SP2 MOD_CLOUD15SP2 MOD_CONT15SP2 MOD_DESKTOP15SP2 \
 MOD_DEV_TOOLS15SP2 MOD_LEGACY15SP2 MOD_PYTHON215SP2 \
@@ -256,6 +261,34 @@ read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 
 # Supported SLE 15 repos
 SLE15_REPOS="\
+SLE-Module-Basesystem15-SP3-Pool \
+SLE-Module-Basesystem15-SP3-Updates \
+SLE-Module-Containers15-SP3-Pool \
+SLE-Module-Containers15-SP3-Updates \
+SLE-Module-Desktop-Applications15-SP3-Pool \
+SLE-Module-Desktop-Applications15-SP3-Updates \
+SLE-Module-Development-Tools15-SP3-Pool \
+SLE-Module-Development-Tools15-SP3-Updates \
+SLE-Module-Legacy15-SP3-Pool \
+SLE-Module-Legacy15-SP3-Updates \
+SLE-Module-Packagehub-Subpackages15-SP3-Pool \
+SLE-Module-Packagehub-Subpackages15-SP3-Updates \
+SLE-Module-Public-Cloud15-SP3-Pool \
+SLE-Module-Public-Cloud15-SP3-Updates \
+SLE-Module-Python2-15-SP3-Pool \
+SLE-Module-Python2-15-SP3-Updates \
+SLE-Module-Server-Applications15-SP3-Pool \
+SLE-Module-Server-Applications15-SP3-Updates \
+SLE-Module-Web-Scripting15-SP3-Pool \
+SLE-Module-Web-Scripting15-SP3-Updates \
+SLE-Product-HA15-SP3-Pool \
+SLE-Product-HA15-SP3-Updates \
+SLE-Product-SLES15-SP3-Pool \
+SLE-Product-SLES15-SP3-Updates \
+SLE-Product-WE15-SP3-Pool \
+SLE-Product-WE15-SP3-Updates \
+SUSE-PackageHub-15-SP3-Backports-Pool \
+SUSE-PackageHub-15-SP3-Pool \
 SLE-Module-Basesystem15-SP2-Pool \
 SLE-Module-Basesystem15-SP2-Updates \
 SLE-Module-Containers15-SP2-Pool \

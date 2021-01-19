@@ -10,7 +10,6 @@
 #             - SOC 9 support is pending
 #
 # Change log :
-# 2020-08-27  - SLES 12 SP4 is now LTSS
 # 2020-05-13  - Changes are now tracked in git
 # 2020-03-05  - Added support for 
 #             - SLES 15 SP2
@@ -178,7 +177,7 @@ echo -e "                       Also configurable in /etc/opt/oscc/oscc.conf"
 echo -e "  -s                   Display supported products, repositories and architectures"
 echo -e "  -t <path>            Use <path> as temporary/work directory instead of default"
 
-echo -e "\nExample : $SCRIPTNAME -r http://mysmt.mycompany.com/repo/ nts_blablebleu.tbz\n"
+echo -e "\nExample : $SCRIPTNAME -r http://mysmt.mycompany.com/repo/ scc_blablebleu.txz\n"
 }
 
 usage_maint () {
@@ -750,7 +749,8 @@ TS=`date +%Y%m%d-%H%M`
 if ! [ -z $SCONFIG ] ; then
   SCONFIG_FN=$(basename $SCONFIG)
 fi
-REPORTFILE=`echo $DIR_CALLED_FROM"/oscc-"$SCONFIG_FN"__"$TS|sed 's/\.tbz//g'`
+REPORTFILE=`echo $DIR_CALLED_FROM"/oscc-"$SCONFIG_FN"__"$TS|\
+sed 's/\.tbz//g'|sed 's/\.txz//g'|sed 's/\.bz2//g'`
 TEMPDIR1=`mktemp -d -p $VAR_DIR`
 cd $TEMPDIR1
 NO_TEMPFILES=7
@@ -776,12 +776,9 @@ if [ -r $SCONFIG.md5 ] ; then
   fi
 fi
 cd $TEMPDIR1
-if echo `file $SCONFIG`|grep -qi bzip2 ; then
-  TAR_UNPACK_CMD="tar -jxf"
-  TAR_TOC_CMD="tar -jtf"
-elif echo `file $SCONFIG`|grep -qi XZ ; then
-  TAR_UNPACK_CMD="tar -Jxf"
-  TAR_TOC_CMD="tar -Jtf"
+if echo `file $SCONFIG`|grep -qiE 'bzip2|xz' ; then
+  TAR_UNPACK_CMD="tar -xf"
+  TAR_TOC_CMD="tar -tf"
 else
   echo "$SCONFIG does not look like a supportconfig tarball"
   cleanup 1
@@ -3209,7 +3206,7 @@ else
   done
   if ! [ $MAINT_MODE ] ; then
     eval SCONFIG='$'{$#}
-    if ! [ `echo $SCONFIG|egrep '\.txz|\.tbz'` ] ; then
+    if ! [ `echo $SCONFIG|egrep '\.txz|\.tbz|\.bz2'` ] ; then
       echo "Invalid supportconfig archive specified : $SCONFIG"
       usage
       exit 1

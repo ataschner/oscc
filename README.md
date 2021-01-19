@@ -22,3 +22,5 @@ When executed against a supportconfig archive, oscc
 - displays the results to the user
 
 In the config file the URL to the update repositories needs to be defined. It is assumed to be a directory structure provided by an RMT or SMT server and accessible via http, https, nfs or local storage.
+
+Note : To use this tool install the latest binary package from RPMS/noarch/

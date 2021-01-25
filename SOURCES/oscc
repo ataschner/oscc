@@ -577,7 +577,8 @@ NO_ERR_MSGS=0
 VAR_DIR=/var/opt/oscc/
 SPACES="                                                                     "
 unset INFO_MSGS OUTDATED_MSGS ERR_MSGS REPO_MOUNTED WRONG_SUPPORTUTILS_LINE \
-INFORMED_CREATING_CACHE THIS_IS_SLE12 BASE_PRODUCT_VER REPO_URL MULTIVER_PKGS
+INFORMED_CREATING_CACHE THIS_IS_SLE12 BASE_PRODUCT_VER REPO_URL MULTIVER_PKGS \
+RAW_PRODUCTS_IN_XML
 if ! [ $SCONFIG ] && ! [ $MAINT_MODE ] ; then
   echo "No supportconfig archive specified"
   usage
@@ -1104,6 +1105,8 @@ if [ -f $UPDATESFILE ] ; then
       # Did we find any product records ?
       if ! [[ -s $TEMPFILE1 ]] ; then
         updatesfile_useless
+      else 
+        RAW_PRODUCTS_IN_XML=y
       fi
       while read PRODUCT_LINE ; do
         PRODUCT_SHORT=`echo $PRODUCT_LINE|cut -d'|' -f3`
@@ -1144,12 +1147,37 @@ $UPDATESFILE| grep '^<product name' \
       fi
       # Did we find any product records ?
       if ! [[ -s $TEMPFILE1 ]] ; then
-        updatesfile_useless
+        if sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
+$UPDATESFILE| grep -q 'flag --xml is not known' ; then 
+          # Workaround for zypper not liking --xml any more in SLE 15 SP2
+          # Although reported this in bsc#1181351 we will see these slightly 
+          # broken supportconfigs for an unpredictable future
+          sed -n '/zypper --non-interactive --no-gpg-checks products/,/\]===/p' \
+$UPDATESFILE| grep -vE 'ing| Reposi|\-\-\-|igration'|grep '^i' |sort> $TEMPFILE1
+          if ! [[ -s $TEMPFILE1 ]] ; then
+            updatesfile_useless
+          fi
+        else 
+          updatesfile_useless
+        fi
+      else 
+        RAW_PRODUCTS_IN_XML=y
       fi
       while read PRODUCT_LINE ; do
         unset PRODUCT_SP PRODUCT_SP_TMP
-        PRODUCT_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%name=*}"} \
+        if [ $RAW_PRODUCTS_IN_XML ] ; then
+          PRODUCT_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%name=*}"} \
 |cut -d'"' -f2`
+          PRODUCT_VER=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
+|cut -d'"' -f2|cut -d'.' -f1`
+          PRODUCT_ARCH=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%arch=*}"} \
+|cut -d'"' -f2`
+        else 
+          PRODUCT_TMP=`echo $PRODUCT_LINE| cut -d'|' -f3|tr -d ' '`
+          PRODUCT_VER=`echo $PRODUCT_LINE| cut -d'|' -f5|tr -d ' '| \
+cut -d'.' -f1`
+          PRODUCT_ARCH=`echo $PRODUCT_LINE| cut -d'|' -f6|tr -d ' '`
+        fi
         # Set the standardized product name
         get_product $PRODUCT_TMP
         if this_product_is_not_processed ; then
@@ -1163,11 +1191,13 @@ $UPDATESFILE| grep '^<product name' \
           elif [ $PRODUCT = 'PKGHUB' ] ; then
             PRODUCT_LONG="SUSE Package Hub"
           else
-            PRODUCT_LONG=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%summary=*}"} \
+            if [ $RAW_PRODUCTS_IN_XML ] ; then
+              PRODUCT_LONG=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%summary=*}"} \
 |cut -d'"' -f2`
+            else
+              PRODUCT_LONG=`echo $PRODUCT_LINE|cut -d'|' -f4|cut -c2-`
+            fi
           fi
-          PRODUCT_VER=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
-|cut -d'"' -f2|cut -d'.' -f1`
           # Handle inconsistent product record version data for SMT
           if [[ $PRODUCT = SMT ]] && \
              [[ `echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
@@ -1177,19 +1207,22 @@ $UPDATESFILE| grep '^<product name' \
             PRODUCT_LONG=$PRODUCT_LONG" SP1"
             PRODUCT_SP=1
           else
-            PRODUCT_SP_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
+            if [ $RAW_PRODUCTS_IN_XML ] ; then
+              PRODUCT_SP_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
 |cut -d'"' -f2`
-          fi
-          if [ ! $PRODUCT_SP ] ; then
+            else
+              PRODUCT_SP_TMP=`echo $PRODUCT_LINE| cut -d'|' -f5|tr -d ' ' \
+|cut -d'-' -f1`
+            fi
             if [[ `echo $PRODUCT_SP_TMP|grep '\.'` ]] ; then
-              PRODUCT_SP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
-|cut -d'"' -f2|cut -d'.' -f2`
-            else 
-              PRODUCT_SP=0
+              PRODUCT_SP_TMP=`echo $PRODUCT_SP_TMP|cut -d'.' -f2`
+            else
+              PRODUCT_SP_TMP=0
             fi
           fi
-          PRODUCT_ARCH=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%arch=*}"} \
-|cut -d'"' -f2`
+          if [ ! $PRODUCT_SP ] ; then
+            PRODUCT_SP=$PRODUCT_SP_TMP
+          fi
           # If service pack > 0 add it to the product string
           get_sp_string $PRODUCT_SP
           # Add product to array of installed products
@@ -3276,7 +3309,6 @@ chew_repo_base
 build_repo_list
 # Update current versions in repositories
 #dump_array REPOS
-#cleanup 0
 update_repo_cache
 # Returns installed package names and their version in $TEMPFILE2
 find_installed_pkgs

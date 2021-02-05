@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.4
+Release:      0.5
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -71,6 +71,14 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+
+* Fri Feb 05 2021 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3-0.5
+  - Support .bz2 in case of repacked tarballs
+  - Support for SLE 15 SP3
+  - SLES 15 SP1 is now in LTSS
+  - Work around missing XML product data in updates.txt
+  - Support for HPC module on SLE 15
 
 * Mon Oct 05 2020 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3.0.4

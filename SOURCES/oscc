@@ -788,12 +788,12 @@ echo "Using repositories in $REPOBASE"
 rm -rfv $VAR_DIR* > /dev/null 2>&1
 
 # Setup work files/dirs
-TS=`date +%Y%m%d-%H%M`
+TS=`date +%Y%m%d-%H%M` 
 if ! [ -z $SCONFIG ] ; then
   SCONFIG_FN=$(basename $SCONFIG)
 fi
 REPORTFILE=`echo $DIR_CALLED_FROM"/oscc-"$SCONFIG_FN"__"$TS|\
-sed 's/\.tbz//g'|sed 's/\.txz//g'|sed 's/\.bz2//g'`
+sed 's/\.tbz//g'|sed 's/\.txz//g'|sed 's/\.bz2//g'|sed 's/\.xz//g'`
 TEMPDIR1=`mktemp -d -p $VAR_DIR`
 cd $TEMPDIR1
 NO_TEMPFILES=7
@@ -3281,7 +3281,7 @@ else
   done
   if ! [ $MAINT_MODE ] ; then
     eval SCONFIG='$'{$#}
-    if ! [ `echo $SCONFIG|egrep '\.txz|\.tbz|\.bz2'` ] ; then
+    if ! [ `echo $SCONFIG|egrep '\.txz|\.tbz|\.bz2|\.xz'` ] ; then
       echo "Invalid supportconfig archive specified : $SCONFIG"
       usage
       exit 1

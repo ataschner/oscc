@@ -1189,14 +1189,17 @@ $UPDATESFILE`; then
         sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
 $UPDATESFILE| grep '^<product name' \
 |grep -v igration |grep 'installed="'1'"' |sort> $TEMPFILE1
-      elif [ $BASE_PRODUCT_VER -ge 12 ] ; then
-        if [ $BASE_PRODUCT_VER -eq 15 ] && [ $BASE_PRODUCT_SP -ge 4 ] ; then
-          # SLE 15 SP4 uses --xmlout again
-          sed -n '/zypper --non-interactive --no-gpg-checks --xmlout products/,/\]===/p' \
+      else
+        # Handle both --xml and --xmlout options in SLE 15 SP2+
+        # Depending on the version of supportconfig used to create tarball  
+        if `grep -q 'zypper --non-interactive --no-gpg-checks --xml products' \
+$UPDATESFILE`; then
+          sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
 $UPDATESFILE| grep '^<product name' \
 |grep -v igration |grep 'installed="'true'"' |sort> $TEMPFILE1
-        else
-          sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
+        elif `grep -q 'zypper --non-interactive --no-gpg-checks --xmlout products' \
+$UPDATESFILE`; then
+          sed -n '/zypper --non-interactive --no-gpg-checks --xmlout products/,/\]===/p' \
 $UPDATESFILE| grep '^<product name' \
 |grep -v igration |grep 'installed="'true'"' |sort> $TEMPFILE1
         fi
@@ -3380,7 +3383,6 @@ chew_repo_base
 # Populate REPOS[] with applicable repositories for each product in $PRODUCTS[]
 build_repo_list
 # Update current versions in repositories
-#dump_array REPOS
 update_repo_cache
 # Returns installed package names and their version in $TEMPFILE2
 find_installed_pkgs

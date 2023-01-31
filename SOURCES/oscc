@@ -218,6 +218,11 @@ SUPPORTED_ARCHS="i586 x86_64"
 
 # Supported products
 S_PRODUCTS="\
+SLES15SP4 \
+MOD_BASESYSTEM15SP4 MOD_CERT15SP4 MOD_CLOUD15SP4 MOD_CONT15SP4 MOD_DESKTOP15SP4 \
+MOD_DEV_TOOLS15SP4 MOD_HPC15SP4 MOD_LEGACY15SP4 MOD_PYTHON315SP4 \
+MOD_SRV_APPS15SP4 MOD_WEBSCR15SP4 \
+PKGHUB15SP4 \
 SLES15SP3 \
 MOD_BASESYSTEM15SP3 MOD_CLOUD15SP3 MOD_CONT15SP3 MOD_DESKTOP15SP3 \
 MOD_DEV_TOOLS15SP3 MOD_HPC15SP3 MOD_LEGACY15SP3 MOD_PYTHON215SP3 \
@@ -245,9 +250,9 @@ SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1 \
 SMT11SP3 SMT11SP2 SMT11SP1 \
 SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 SDK11SP3 SDK11SP2 SDK11SP1 SDK10SP4 \
 SOC6 SOC7 SOC8 \
-HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 HAE11SP3 HAE11SP2 HAE11SP1 \
+HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 HAE11SP3 HAE11SP2 HAE11SP1 \
 SLES10SP4 \
-WE15 WE15SP1 WE15SP2 \
+WE15 WE15SP1 WE15SP2 WE15SP4 \
 WE12SP5 WE12SP4 WE12SP3 WE12SP2 WE12SP1 WE12 \
 SES3 SES4"
 read -a SUPPORTED_PRODUCTS <<< $S_PRODUCTS
@@ -261,6 +266,38 @@ read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 
 # Supported SLE 15 repos
 SLE15_REPOS="\
+SLE-Module-Basesystem15-SP4-Pool \
+SLE-Module-Basesystem15-SP4-Updates \
+SLE-Module-Certifications-15-SP4-Pool \
+SLE-Module-Certifications-15-SP4-Updates \
+SLE-Module-Containers15-SP4-Pool \
+SLE-Module-Containers15-SP4-Updates \
+SLE-Module-Desktop-Applications15-SP4-Pool \
+SLE-Module-Desktop-Applications15-SP4-Updates \
+SLE-Module-Development-Tools15-SP4-Pool \
+SLE-Module-Development-Tools15-SP4-Updates \
+SLE-Module-HPC15-SP4-Pool \
+SLE-Module-HPC15-SP4-Updates \
+SLE-Module-Legacy15-SP4-Pool \
+SLE-Module-Legacy15-SP4-Updates \
+SLE-Module-Packagehub-Subpackages15-SP4-Pool \
+SLE-Module-Packagehub-Subpackages15-SP4-Updates \
+SLE-Module-Public-Cloud15-SP4-Pool \
+SLE-Module-Public-Cloud15-SP4-Updates \
+SLE-Module-Python3-15-SP4-Pool \
+SLE-Module-Python3-15-SP4-Updates \
+SLE-Module-Server-Applications15-SP4-Pool \
+SLE-Module-Server-Applications15-SP4-Updates \
+SLE-Module-Web-Scripting15-SP4-Pool \
+SLE-Module-Web-Scripting15-SP4-Updates \
+SLE-Product-HA15-SP4-Pool \
+SLE-Product-HA15-SP4-Updates \
+SLE-Product-SLES15-SP4-Pool \
+SLE-Product-SLES15-SP4-Updates \
+SLE-Product-WE15-SP4-Pool \
+SLE-Product-WE15-SP4-Updates \
+SUSE-PackageHub-15-SP4-Backports-Pool \
+SUSE-PackageHub-15-SP4-Pool \
 SLE-Module-Basesystem15-SP3-Pool \
 SLE-Module-Basesystem15-SP3-Updates \
 SLE-Module-Containers15-SP3-Pool \
@@ -941,6 +978,8 @@ elif `echo $1|grep -qi sle-module-public-cloud`; then
   PRODUCT=MOD_CLOUD
 elif `echo $1|grep -qi sle-module-python2`; then
   PRODUCT=MOD_PYTHON2
+elif `echo $1|grep -qi sle-module-python3`; then
+  PRODUCT=MOD_PYTHON3
 elif `echo $1|grep -qi sle-module-server-applications`; then
   PRODUCT=MOD_SRV_APPS
 elif `echo $1|grep -qi sle-module-toolchain`; then
@@ -1141,17 +1180,26 @@ if [ -f $UPDATESFILE ] ; then
       done < "$TEMPFILE1"
     fi
   elif [ $BASE_PRODUCT_VER -ge 11 ] ; then
-    if grep -q 'zypper --non-interactive --no-gpg-checks --xml products' \
-$UPDATESFILE ; then
+    if `grep -q 'zypper --non-interactive --no-gpg-checks --xml products' \
+$UPDATESFILE` || 
+       ` grep -q 'zypper --non-interactive --no-gpg-checks --xmlout products' \
+$UPDATESFILE`; then
       # SLE 11 - xml
       if [ $BASE_PRODUCT_VER -eq 11 ] ; then
         sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
 $UPDATESFILE| grep '^<product name' \
 |grep -v igration |grep 'installed="'1'"' |sort> $TEMPFILE1
       elif [ $BASE_PRODUCT_VER -ge 12 ] ; then
-        sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
+        if [ $BASE_PRODUCT_VER -eq 15 ] && [ $BASE_PRODUCT_SP -ge 4 ] ; then
+          # SLE 15 SP4 uses --xmlout again
+          sed -n '/zypper --non-interactive --no-gpg-checks --xmlout products/,/\]===/p' \
 $UPDATESFILE| grep '^<product name' \
 |grep -v igration |grep 'installed="'true'"' |sort> $TEMPFILE1
+        else
+          sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
+$UPDATESFILE| grep '^<product name' \
+|grep -v igration |grep 'installed="'true'"' |sort> $TEMPFILE1
+        fi
       fi
       # Did we find any product records ?
       if ! [[ -s $TEMPFILE1 ]] ; then
@@ -1238,6 +1286,8 @@ cut -d'.' -f1`
 "#"$PRODUCT_LONG $BASE_PRODUCT_VER $SP_STRING"#"$PRODUCT$PRODUCT_VER$SP_STRING"
         fi
       done < "$TEMPFILE1"
+    else
+      updatesfile_useless
     fi
   fi
 else
@@ -2083,6 +2133,8 @@ elif `echo $1|grep -qiE "MOD_SRV_APPS|module-server-app"` ; then
   REPO_PRODUCT="SLE-Module-Server-Applications"
 elif `echo $1|grep -qiE "MOD_PYTHON2|module-python2"` ; then
   REPO_PRODUCT="SLE-Module-Python2"
+elif `echo $1|grep -qiE "MOD_PYTHON3|module-python3"` ; then
+  REPO_PRODUCT="SLE-Module-Python3"
 elif `echo $1|grep -qiE "MOD_SYSMGMT|systems-man"` ; then
   REPO_PRODUCT="SLE-Module-Adv-Systems-Management"
 elif `echo $1|grep -qiE "MOD_TOOLCH|toolchain"` ; then
@@ -2451,8 +2503,14 @@ $PRODUCT_VER$REPO_SP_STRING
     ;;
     MOD_CERT        ) REPO_PRODUCT_FULL="SLE-Module-Certifications"\
 $PRODUCT_VER$REPO_SP_STRING
-                      POOL_REPO="SLE-Module-Certifications12-Pool"
-                      UPDATES_REPO="SLE-Module-Certifications12-Updates"
+                      sle12_repo_product_setup $PRODUCT
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-Module-Certifications12-Pool"
+                        UPDATES_REPO="SLE-Module-Certifications12-Updates"
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Module-Certifications-"$PRODUCT_VER$REPO_SP_STRING"-Pool"
+                        UPDATES_REPO="SLE-Module-Certifications-"$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                      fi
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_CLOUD       ) REPO_PRODUCT_FULL="SLE-Module-Public-Cloud"\
@@ -2515,6 +2573,12 @@ $PRODUCT_VER$REPO_SP_STRING
 $PRODUCT_VER$REPO_SP_STRING
                       POOL_REPO="SLE-Module-Python2-$PRODUCT_VER$REPO_SP_STRING-Pool"
                       UPDATES_REPO="SLE-Module-Python2-$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_PYTHON3      ) REPO_PRODUCT_FULL="SLE-Module-Python3"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-Python3-$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-Python3-$PRODUCT_VER$REPO_SP_STRING-Updates"
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_SRV_APPS    ) REPO_PRODUCT_FULL="SLE-Module-Server-Applications"\

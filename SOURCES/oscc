@@ -1032,12 +1032,12 @@ $UPDATESFILE| grep '^<product name' \
 $UPDATESFILE`; then
           sed -n '/zypper --non-interactive --no-gpg-checks --xml products/,/\]===/p' \
 $UPDATESFILE| grep '^<product name' \
-|grep -v igration |grep 'installed="'true'"' |sort> $TEMPFILE1
+|grep -v igration |grep 'installed="'true'"' |grep -i 'vendor=\"suse' |sort> $TEMPFILE1
         elif `grep -q 'zypper --non-interactive --no-gpg-checks --xmlout products' \
 $UPDATESFILE`; then
           sed -n '/zypper --non-interactive --no-gpg-checks --xmlout products/,/\]===/p' \
 $UPDATESFILE| grep '^<product name' \
-|grep -v igration |grep 'installed="'true'"' |sort> $TEMPFILE1
+|grep -v igration |grep 'installed="'true'"' |grep -i 'vendor=\"suse' |sort> $TEMPFILE1
         fi
       fi
       # Did we find any product records ?

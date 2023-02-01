@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+SCRIPT_VER="0.3-0.6"
 # Analyze if the system in a supportconfig archive is up to date
 # with the currently available versions of installed packages
 # 
@@ -188,6 +189,7 @@ echo -e "                       Useful on systems with limited bandwidth to the 
 echo -e "                       repositories"
 echo -e "Example : $SCRIPTNAME -u"
 echo -e "Updates the cache from the base URL configured in /etc/opt/oscc/oscc.conf\n"
+echo -e "  -v                   Show script version"
 echo -e "  -w '<repo> <arch>'   Wipes and and recreates the repodata cache for the "
 echo -e "                       repository (including architecture) specified as argument".
 echo -e "                       Note the required quotes."
@@ -2949,6 +2951,11 @@ done < "$TEMPFILE4"
 echo -ne "$SPACES\r"
 }
 
+show_version ()
+{
+echo "Version of this script is : "$SCRIPT_VER
+}
+
 ########################################################################
 #                                                                      #
 #                          Main routine                                #
@@ -2966,7 +2973,7 @@ elif [ "$1" = "--help" ]; then
   usage_short
 	exit 0
 else
-  while getopts "hilpr:smt:uw:" opt; do
+  while getopts "hilpr:smt:uvw:" opt; do
 	  case $opt in
 		  h | \? )
 			  usage
@@ -2992,6 +2999,10 @@ else
       u     )
         MAINT_MODE=y
         MAINT_FLAG=u
+        ;;
+      v     )
+        show_version
+        exit 0
         ;;
       w     )
         MAINT_MODE=y

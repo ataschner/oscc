@@ -1574,7 +1574,7 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
   else
     echo $REPO $ARCH_SHOW
     # Fetch and validate the repodata of this repository
-    if `echo $REPO|grep -Eqi '12|15|storage'` ; then
+    if `echo $REPO|grep -Eqi '12|15'` ; then
       if `echo $REPO|grep -qi pool` ; then
         get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
       elif `echo $REPO|grep -qi updates` ; then
@@ -2012,19 +2012,6 @@ $REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
           echo "PRODUCT_SP    : $PRODUCT_SP"
           cleanup 1
         fi
-      elif `echo $REPO_TO_FIX | grep -q Storage ` ; then
-        # Hack for SUSE Enterprise Storage, 
-        # since it breaks the naming convention.
-        PRODUCT_VER=`echo $REPO|cut -d- -f4`
-        if `echo $REPO|grep -qi pool` ; then
-          get_repodata $REAL_REPOBASE$SCC_BASE"Products/Storage/"\
-$PRODUCT_VER"/"$REPO_TO_FIX_ARCH"/product/repodata/" $REPO_TO_FIX \
-$REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
-        elif `echo $REPO|grep -qi updates` ; then
-          get_repodata $REAL_REPOBASE$SCC_BASE"Updates/Storage/"\
-$PRODUCT_VER"/"$REPO_TO_FIX_ARCH"/update/repodata/" $REPO_TO_FIX \
-$REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
-        fi
       elif $(echo $REPO_TO_FIX|grep -qE "SLES") && \
          $(echo $REPO_TO_FIX|grep -qE "12|15") ||
          $(echo $REPO_TO_FIX|grep -qE "SLE-") && \
@@ -2460,15 +2447,6 @@ $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $P
           add_repo $REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
 $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
         fi
-      fi
-    elif echo $REPO | grep -qi storage ; then
-      # Hack for SUSE Enterprise Storage, since it breaks the naming convention.
-      if `echo $REPO|grep -qi pool` ; then
-        add_repo $REAL_REPOBASE$SCC_BASE"Products/Storage/"$PRODUCT_VER"/"\
-$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
-      elif `echo $REPO|grep -q Updates` ; then
-        add_repo $REAL_REPOBASE$SCC_BASE"Updates/Storage/"$PRODUCT_VER"/"\
-$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
       fi
     else
       add_repo $REAL_REPOBASE$SCC_BASE$REPO"/"$REPO_ARCH"/repodata/" \

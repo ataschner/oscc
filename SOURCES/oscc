@@ -248,10 +248,9 @@ MOD_CERT12 MOD_HPC12 \
 PKGHUB12SP2 PKGHUB12SP3 PKGHUB12SP4 PKGHUB12SP5 \
 SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1 \
 SMT11SP3 SMT11SP2 SMT11SP1 \
-SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 SDK11SP3 SDK11SP2 SDK11SP1 SDK10SP4 \
+SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 SDK11SP3 SDK11SP2 SDK11SP1 \
 SOC6 SOC7 SOC8 \
 HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 HAE11SP3 HAE11SP2 HAE11SP1 \
-SLES10SP4 \
 WE15 WE15SP1 WE15SP2 WE15SP3 WE15SP4 \
 WE12SP5 WE12SP4 WE12SP3 WE12SP2 WE12SP1 WE12 \
 SES3 SES4"
@@ -260,8 +259,7 @@ read -a SUPPORTED_PRODUCTS <<< $S_PRODUCTS
 # Supported LTSS products
 L_PRODUCTS="SLES15SP3 SLES15SP2 SLES15SP1 SLES15 \
 SLES12SP4 SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
-SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1 \
-SLES10SP4"
+SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1"
 read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 
 # Supported SLE 15 repos
@@ -485,12 +483,6 @@ SLES11-SP3-Pool SLES11-SP3-Updates \
 SLES11-SP4-Pool SLES11-SP4-Updates"
 read -a SUPPORTED_SLE11_REPOS <<< $SLE11_REPOS
 
-# Supported SLE 10 repos
-SLE10_REPOS="\
-SLES10-SP4-Pool SLES10-SP4-Updates \
-SLE10-SDK-SP4-Pool SLE10-SDK-SP4-Updates"
-read -a SUPPORTED_SLE10_REPOS <<< $SLE10_REPOS
-
 # Supported Storage repos
 SES_REPOS="SUSE-Enterprise-Storage-4-Pool SUSE-Enterprise-Storage-4-Updates \
 SUSE-Enterprise-Storage-3-Pool SUSE-Enterprise-Storage-3-Updates"
@@ -518,8 +510,7 @@ SLES12-LTSS-Updates"
 RCE_LTS_REPOS="SLES11-SP4-LTSS-Updates \
 SLES11-SP3-LTSS-Updates \
 SLES11-SP2-LTSS-Updates \
-SLES11-SP1-LTSS-Updates \
-SLES10-SP4-LTSS-Updates"
+SLES11-SP1-LTSS-Updates"
 LTS_REPOS="$SCC_LTS_REPOS $RCE_LTS_REPOS"
 read -a LTSS_REPOS <<< $LTS_REPOS
 
@@ -527,7 +518,7 @@ read -a LTSS_REPOS <<< $LTS_REPOS
 SCC_REPOS="$SCC_LTS_REPOS $SLE15_REPOS $SLE12_REPOS $SOC_REPOS $SES_REPOS"
 
 # Repos in legacy $RCE directory structure 
-RCE_REPOS="$RCE_LTS_REPOS $SLE10_REPOS $SLE11_REPOS"
+RCE_REPOS="$RCE_LTS_REPOS $SLE11_REPOS"
 
 # Supported SLE 15 architectures
 SLE15_ARCHS="x86_64"
@@ -548,10 +539,6 @@ read -a SUPPORTED_SES_ARCHS <<< $SES_ARCHS
 # Supported SLE 11 architectures
 SLE11_ARCHS="sle-11-i586 sle-11-x86_64"
 read -a SUPPORTED_SLE11_ARCHS <<< $SLE11_ARCHS
-
-# Supported SLE 10 architectures
-SLE10_ARCHS="sles-10-i586 sles-10-x86_64"
-read -a SUPPORTED_SLE10_ARCHS <<< $SLE10_ARCHS
 }
 
 show_supported () {
@@ -573,9 +560,6 @@ dump_array SUPPORTED_SLE12_REPOS
 echo
 echo "SLE 11 repositories :"
 dump_array SUPPORTED_SLE11_REPOS
-echo
-echo "SLE 10 repositories :"
-dump_array SUPPORTED_SLE10_REPOS
 echo
 echo "LTSS repositories :"
 dump_array LTSS_REPOS
@@ -755,31 +739,6 @@ SUPPORTED_SLE11_ARCHS ; then
     fi
   else
     SLE11_ARCHS=(${SUPPORTED_SLE11_ARCHS[@]})
-  fi
-  # SLE 10
-  if [[ $SLE10_REPOS ]] ; then
-    if echo $SLE10_REPOS|grep -q "none" ; then
-      unset SLE10_REPOS
-    else
-      # Validate if the user set repos are supported
-      read -a ENABLED_SLE10_REPOS <<< $SLE10_REPOS
-      if validate_enabled_array repository ENABLED_SLE10_REPOS \
-SUPPORTED_SLE10_REPOS ; then
-        SLE10_REPOS=(${ENABLED_SLE10_REPOS[@]})
-      fi
-    fi
-  else
-    SLE10_REPOS=(${SUPPORTED_SLE10_REPOS[@]})
-  fi
-  if [[ $SLE10_ARCHS ]] ; then
-    # Validate if the user set architectures are supported
-    read -a ENABLED_SLE10_ARCHS <<< $SLE10_ARCHS
-    if validate_enabled_array architecture ENABLED_SLE10_ARCHS \
-SUPPORTED_SLE10_ARCHS ; then
-      SLE10_ARCHS=(${ENABLED_SLE10_ARCHS[@]})
-    fi
-  else
-    SLE10_ARCHS=(${SUPPORTED_SLE10_ARCHS[@]})
   fi
 else
   echo "Error :"
@@ -1147,43 +1106,7 @@ $BASE_PRODUCT_VER$SP_STRING"
 PRODUCTS_SEEN=$BASE_PRODUCT
 # Try and detect add-on products from $UPDATESFILE
 if [ -f $UPDATESFILE ] ; then
-  if [ $BASE_PRODUCT_VER -eq 10 ] ; then
-    if grep -q 'zypp-query-pool products' $UPDATESFILE ; then
-      # SLE 10 - no xml
-      sed -n '/zypp-query-pool products/,/\]===/p' $UPDATESFILE \
-        |grep product|\
-      grep -Ev 'igration|products'| grep '^i'> $TEMPFILE1  
-      # Did we find any product records ?
-      if ! [[ -s $TEMPFILE1 ]] ; then
-        updatesfile_useless
-      else 
-        RAW_PRODUCTS_IN_XML=y
-      fi
-      while read PRODUCT_LINE ; do
-        PRODUCT_SHORT=`echo $PRODUCT_LINE|cut -d'|' -f3`
-        # Set the standardized product name
-        get_product $PRODUCT_SHORT
-        this_product_is_not_processed $PRODUCT
-        if ! `echo $PRODUCTS_SEEN|grep -q $PRODUCT` ; then
-          PRODUCTS_SEEN=$PRODUCTS_SEEN" "$PRODUCT
-          PRODUCT_VER=`echo $PRODUCT_LINE|cut -d'|' -f4|cut -d'.' -f1`
-          if [[ `echo $PRODUCT_LINE|cut -d'|' -f4|grep '\.'` ]] ; then
-            PRODUCT_SP=`echo $PRODUCT_LINE|cut -d'|' -f4|cut -d'.' -f2 \
-              |cut -d'-' -f1`
-          else 
-            PRODUCT_SP=0
-          fi
-          PRODUCT_ARCH=`echo $PRODUCT_LINE|cut -d'|' -f5`
-          PRODUCT_LONG=`echo $PRODUCT_LINE|cut -d'|' -f10`
-          # If service pack > 0 add it to the product string
-          get_sp_string $PRODUCT_SP
-          # Add product to array of installed products
-          add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
-"#"$PRODUCT_LONG"#"$PRODUCT$PRODUCT_VER$SP_STRING"
-        fi
-      done < "$TEMPFILE1"
-    fi
-  elif [ $BASE_PRODUCT_VER -ge 11 ] ; then
+  if [ $BASE_PRODUCT_VER -ge 11 ] ; then
     if `grep -q 'zypper --non-interactive --no-gpg-checks --xml products' \
 $UPDATESFILE` || 
        ` grep -q 'zypper --non-interactive --no-gpg-checks --xmlout products' \
@@ -1381,11 +1304,6 @@ if ! [[ $REPO_TYPE = "dummy" ]] \
     1 )
       if check_if_enabled repository $REPO_NAME SES_REPOS ; then
         check_if_enabled repository-architecture $REPO_ARCH SES_ARCHS
-      fi
-      ;;
-    10 )
-      if check_if_enabled repository $REPO_NAME SLE10_REPOS ; then
-        check_if_enabled repository-architecture $REPO_ARCH SLE10_ARCHS
       fi
       ;;
     11 )
@@ -1987,17 +1905,6 @@ ${SLE11_ARCHS[$ARCH_IX]}"/repodata/" ${SLE11_REPOS[$SLE_11_REPO_IX]} \
 ${SLE11_ARCHS[$ARCH_IX]} $PRODUCT_VER"
   done
 done
-# SLE 10
-PRODUCT_VER=10
-for ((SLE_10_REPO_IX=0; SLE_10_REPO_IX < ${#SLE10_REPOS[*]} ; \
-  SLE_10_REPO_IX++)) ; do
-  get_scc_base ${SLE10_REPOS[$SLE_10_REPO_IX]}
-  for ((ARCH_IX=0; ARCH_IX < ${#SLE10_ARCHS[*]} ; ARCH_IX++)) ; do
-    add_repo "$REAL_REPOBASE$SCC_BASE${SLE10_REPOS[$SLE_10_REPO_IX]}"/"\
-${SLE10_ARCHS[$ARCH_IX]}"/repodata/" ${SLE10_REPOS[$SLE_10_REPO_IX]} \
-${SLE10_ARCHS[$ARCH_IX]} $PRODUCT_VER"
-  done
-done
 # SES
 for ((SES_REPO_IX=0; SES_REPO_IX < ${#SES_REPOS[*]} ; \
   SES_REPO_IX++)) ; do
@@ -2181,7 +2088,6 @@ if [ -n "$REPO_TO_FIX_ARG" ] ; then
   if [[ $(echo ${SLE15_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SLE12_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SLE11_REPOS[*]} | grep $REPO_TO_FIX) || \
-        $(echo ${SLE10_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SES_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SOC_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${LTSS_REPOS[*]} | grep $REPO_TO_FIX) ]] ; then
@@ -2190,7 +2096,6 @@ if [ -n "$REPO_TO_FIX_ARG" ] ; then
       if ! [[ $(echo ${SLE15_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
               $(echo ${SLE12_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
               $(echo ${SLE11_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
-              $(echo ${SLE10_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
               $(echo ${SOC_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
               $(echo ${SES_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) ]] ; then
         echo -e "\nError : Invalid/unsupported architecture \
@@ -2199,7 +2104,6 @@ if [ -n "$REPO_TO_FIX_ARG" ] ; then
         echo ${SLE15_ARCHS[*]}
         echo ${SLE12_ARCHS[*]}
         echo ${SLE11_ARCHS[*]}
-        echo ${SLE10_ARCHS[*]}
         echo ${SES_ARCHS[*]}
         echo ${SOC_ARCHS[*]}
         usage_maint
@@ -2332,7 +2236,6 @@ $PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/update/repodata/" \
     echo ${SLE15_REPOS[*]}
     echo ${SLE12_REPOS[*]}
     echo ${SLE11_REPOS[*]}
-    echo ${SLE10_REPOS[*]}
     echo ${SES_REPOS[*]}
     echo ${SOC_REPOS[*]}
     echo ${LTSS_REPOS[*]}
@@ -2655,21 +2558,13 @@ $REPO_SP_STRING
                       cleanup 1
   esac
   case $PRODUCT_VER in 
-    10 ) REPO_ARCH="sles-"$PRODUCT_VER"-"$PRODUCT_ARCH
-    ;;
     11 ) REPO_ARCH="sle-"$PRODUCT_VER"-"$PRODUCT_ARCH
     ;;
     6|7|8|9|12|15 ) REPO_ARCH=$PRODUCT_ARCH
   esac
   case $PRODUCT in 
   SLES ) 
-    if [[ $PRODUCT_VER -eq 10 && $PRODUCT_SP -eq 1 ]] ; then
-      REPOLIST="$REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -eq 10  &&  $PRODUCT_SP -ge 2 ]] || \
-      [[ $PRODUCT = "SLES" && $PRODUCT_VER -eq 11 && $PRODUCT_SP -le 1 ]]
-    then
-      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 2 ]] ; then
+    if [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 2 ]] ; then
         REPOLIST="$REPO_PRODUCT"11-SP1-Pool" $REPO_PRODUCT"11-SP1-Updates" \
 $REPO_PRODUCT_FULL"-Core" $REPO_PRODUCT_FULL"-Updates""
     elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 3 ]] ; then
@@ -2720,8 +2615,7 @@ SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Updates"
     fi
     ;;
   SDK  ) 
-    if [[ $PRODUCT_VER -eq 10 && $PRODUCT_SP -ge 4 ]] || \
-       [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -le 1 ]] || \
+    if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -le 1 ]] || \
        [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -ge 3 ]] ; then
       REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
     elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 2 ]] ; then
@@ -2890,7 +2784,7 @@ DISTRO_START_POS=`grep -A1 'rpm -qa --queryformat \"\%-35{NAME' rpm.txt \
 ((DISTRO_START_POS++))
 sed -n '/rpm -qa --queryformat \"\%-35{NAME/,/^$/p' rpm.txt \
   |grep -Ev '^NAME|^$' \
-  |grep -E "SUSE Linux Enterprise $BASE_PRODUCT_VER|SLE\_10" > $TEMPFILE1
+  |grep "SUSE Linux Enterprise $BASE_PRODUCT_VER" > $TEMPFILE1
 # Since supportutils may have different distro flag, it needs a special check
 # Check if we have supportutils from this SLE version
 WRONG_SUPPORTUTILS_LINE=`grep 'supportutils' $TEMPFILE1 2>/dev/null \

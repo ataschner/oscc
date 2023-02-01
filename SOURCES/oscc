@@ -248,7 +248,6 @@ MOD_CERT12 MOD_HPC12 \
 PKGHUB12SP2 PKGHUB12SP3 PKGHUB12SP4 PKGHUB12SP5 \
 SLES11SP4 \
 SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 \
-SOC6 SOC7 SOC8 \
 HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 \
 WE15 WE15SP1 WE15SP2 WE15SP3 WE15SP4 \
 WE12SP5 WE12SP4 WE12SP3 WE12SP2 WE12SP1 WE12"
@@ -470,15 +469,6 @@ SLE11-SDK-SP4-Pool SLE11-SDK-SP4-Updates \
 SLES11-SP4-Pool SLES11-SP4-Updates"
 read -a SUPPORTED_SLE11_REPOS <<< $SLE11_REPOS
 
-# Supported Cloud repos
-SOC_REPOS="SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates \
-SUSE-OpenStack-Cloud-7-Pool SUSE-OpenStack-Cloud-7-Updates \
-SUSE-OpenStack-Cloud-8-Pool SUSE-OpenStack-Cloud-8-Updates"
-read -a SUPPORTED_SOC_REPOS <<< $SOC_REPOS
-
-# Supported Cloud versions
-SOC_VERSIONS="6 7 8"
-
 # Supported LTSS repositories
 SCC_LTS_REPOS="SLES15-SP3-LTSS-Updates \
 SLES15-SP2-LTSS-Updates \
@@ -494,7 +484,7 @@ LTS_REPOS="$SCC_LTS_REPOS $RCE_LTS_REPOS"
 read -a LTSS_REPOS <<< $LTS_REPOS
 
 # Repos in SUSE directory structure 
-SCC_REPOS="$SCC_LTS_REPOS $SLE15_REPOS $SLE12_REPOS $SOC_REPOS"
+SCC_REPOS="$SCC_LTS_REPOS $SLE15_REPOS $SLE12_REPOS"
 
 # Repos in legacy $RCE directory structure 
 RCE_REPOS="$RCE_LTS_REPOS $SLE11_REPOS"
@@ -506,10 +496,6 @@ read -a SUPPORTED_SLE15_ARCHS <<< $SLE15_ARCHS
 # Supported SLE 12 architectures
 SLE12_ARCHS="x86_64"
 read -a SUPPORTED_SLE12_ARCHS <<< $SLE12_ARCHS
-
-# Supported Cloud architectures
-SOC_ARCHS="x86_64"
-read -a SUPPORTED_SOC_ARCHS <<< $SOC_ARCHS
 
 # Supported SLE 11 architectures
 SLE11_ARCHS="sle-11-i586 sle-11-x86_64"
@@ -538,9 +524,6 @@ dump_array SUPPORTED_SLE11_REPOS
 echo
 echo "LTSS repositories :"
 dump_array LTSS_REPOS
-echo
-echo "SUSE OpenStack Cloud repositories :"
-dump_array SUPPORTED_SOC_REPOS
 }
 
 validate_enabled_array () {
@@ -648,27 +631,6 @@ SUPPORTED_SLE12_ARCHS ; then
     fi
   else
     SLE12_ARCHS=(${SUPPORTED_SLE12_ARCHS[@]})
-  fi
-  # SOC
-  if [[ $SOC_REPOS ]] ; then
-    # Validate if the user set repos are supported
-    read -a ENABLED_SOC_REPOS <<< $SOC_REPOS
-    if validate_enabled_array repository ENABLED_SOC_REPOS \
-SUPPORTED_SOC_REPOS ; then
-      SOC_REPOS=(${ENABLED_SOC_REPOS[@]})
-    fi
-  else
-    SOC_REPOS=(${SUPPORTED_SOC_REPOS[@]})
-  fi
-  if [[ $SOC_ARCHS ]] ; then
-    # Validate if the user set architectures are supported
-    read -a ENABLED_SOC_ARCHS <<< $SOC_ARCHS
-    if validate_enabled_array architecture ENABLED_SOC_ARCHS \
-SUPPORTED_SOC_ARCHS ; then
-      SOC_ARCHS=(${ENABLED_SOC_ARCHS[@]})
-    fi
-  else
-    SOC_ARCHS=(${SUPPORTED_SOC_ARCHS[@]})
   fi
   # SLE 11
   if [[ $SLE11_REPOS ]] ; then
@@ -904,8 +866,6 @@ elif `echo $1|grep -qi sle-we` ; then
   PRODUCT=WE
 elif `echo $1|grep -qi smt` ; then
   PRODUCT=SMT
-elif `echo $1|grep -qEi 'suse-openstack-cloud|ses'` ; then
-  PRODUCT=SOC
 elif `echo $1|grep -qEi 'packagehub'` ; then
   PRODUCT=PKGHUB
 else
@@ -1236,8 +1196,7 @@ local REPO_NAME=$(echo $*|cut -d' ' -f2)
 local REPO_ARCH=$(echo $*|cut -d' ' -f3)
 local BASE_PRODUCT_VER=$(echo $*|cut -d' ' -f4)
 if ! [[ $REPO_TYPE = "dummy" ]] \
-   && ! $(echo $REPO_NAME | grep -q "LTSS") \
-   && ! $(echo $REPO_NAME | grep -qi "openstack"); then
+   && ! $(echo $REPO_NAME | grep -q "LTSS") ; then
   # See if the user has disabled this repository/arch. in the config file
   case $BASE_PRODUCT_VER in
     11 )
@@ -1256,11 +1215,6 @@ if ! [[ $REPO_TYPE = "dummy" ]] \
       fi
       ;;
   esac
-fi
-if $(echo $REPO_NAME | grep -qi "openstack"); then
-   if check_if_enabled repository $REPO_NAME SOC_REPOS ; then
-     check_if_enabled repository-architecture $REPO_ARCH SOC_ARCHS
-   fi  
 fi
 REPOS[$REPO_IX]=$*
 ((REPO_IX++))
@@ -1620,7 +1574,7 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
   else
     echo $REPO $ARCH_SHOW
     # Fetch and validate the repodata of this repository
-    if `echo $REPO|grep -Eqi '12|15|storage|openstack'` ; then
+    if `echo $REPO|grep -Eqi '12|15|storage'` ; then
       if `echo $REPO|grep -qi pool` ; then
         get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
       elif `echo $REPO|grep -qi updates` ; then
@@ -1839,25 +1793,6 @@ ${SLE11_ARCHS[$ARCH_IX]}"/repodata/" ${SLE11_REPOS[$SLE_11_REPO_IX]} \
 ${SLE11_ARCHS[$ARCH_IX]} $PRODUCT_VER"
   done
 done
-# SOC
-for ((SOC_REPO_IX=0; SOC_REPO_IX < ${#SOC_REPOS[*]} ; \
-  SOC_REPO_IX++)) ; do
-  REPO_PRODUCT="OpenStack-Cloud"
-  PRODUCT_VER=`echo ${SOC_REPOS[$SOC_REPO_IX]}|cut -d- -f4`
-  get_scc_base ${SOC_REPOS[$SOC_REPO_IX]}
-  unset REPO_SP_STRING
-  for ((ARCH_IX=0; ARCH_IX < ${#SOC_ARCHS[*]} ; ARCH_IX++)) ; do
-    if `echo ${SOC_REPOS[$SOC_REPO_IX]}|grep -qi pool` ; then
-      add_repo "$REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
-$PRODUCT_VER"/"${SOC_ARCHS[$ARCH_IX]}"/product/repodata/" \
-${SOC_REPOS[$SOC_REPO_IX]} ${SOC_ARCHS[$ARCH_IX]} $PRODUCT_VER"
-    elif `echo ${SOC_REPOS[$SOC_REPO_IX]}|grep -qi updates` ; then
-      add_repo "$REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
-$PRODUCT_VER"/"${SOC_ARCHS[$ARCH_IX]}"/update/repodata/" \
-${SOC_REPOS[$SOC_REPO_IX]} ${SOC_ARCHS[$ARCH_IX]} $PRODUCT_VER"
-    fi
-  done
-done
 update_repo_cache
 }
 
@@ -1978,8 +1913,6 @@ elif `echo $1|grep -qiE "WE"` ; then
   else
     REPO_PRODUCT="SLE-Product-WE"
   fi
-elif `echo $1|grep -qiE "SOC|openstack-cloud"` ; then
-  REPO_PRODUCT="OpenStack-Cloud"
 else
   echo "Error in product setup"
   cleanup 1
@@ -2001,21 +1934,18 @@ if [ -n "$REPO_TO_FIX_ARG" ] ; then
   if [[ $(echo ${SLE15_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SLE12_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SLE11_REPOS[*]} | grep $REPO_TO_FIX) || \
-        $(echo ${SOC_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${LTSS_REPOS[*]} | grep $REPO_TO_FIX) ]] ; then
     REPO_TO_FIX_ARCH=$(echo $REPO_TO_FIX_ARG|cut -d' ' -f2|tr -d ' ')
     if [ -n "$REPO_TO_FIX_ARCH" ] ; then
       if ! [[ $(echo ${SLE15_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
               $(echo ${SLE12_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
-              $(echo ${SLE11_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
-              $(echo ${SOC_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) ]]; then
+              $(echo ${SLE11_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) ]]; then
         echo -e "\nError : Invalid/unsupported architecture \
 ($REPO_TO_FIX_ARCH) specified"
         echo "Supported architectures are :"
         echo ${SLE15_ARCHS[*]}
         echo ${SLE12_ARCHS[*]}
         echo ${SLE11_ARCHS[*]}
-        echo ${SOC_ARCHS[*]}
         usage_maint
         cleanup 1
       fi
@@ -2082,19 +2012,6 @@ $REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
           echo "PRODUCT_SP    : $PRODUCT_SP"
           cleanup 1
         fi
-      elif `echo $REPO_TO_FIX|grep -qiE "openstack-cloud"` ; then
-        # Hack for SUSE OpenStack Cloud, since it is not SLE.
-        get_scc_base $REPO
-        PRODUCT_VER=`echo $REPO|cut -d- -f4`
-        if `echo $REPO|grep -qi pool` ; then
-          get_repodata $REAL_REPOBASE$SCC_BASE"Products/OpenStack-Cloud/"\
-$PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/product/repodata/" \
-$REPO_TO_FIX $REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
-        elif `echo $REPO|grep -qi updates` ; then
-          get_repodata $REAL_REPOBASE$SCC_BASE"Updates/OpenStack-Cloud/"\
-$PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/update/repodata/" \
-$REPO_TO_FIX $REPO_TO_FIX_ARCH $DBDIR$REPO_FILELIST
-        fi
       elif `echo $REPO_TO_FIX | grep -q Storage ` ; then
         # Hack for SUSE Enterprise Storage, 
         # since it breaks the naming convention.
@@ -2146,7 +2063,6 @@ $PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/update/repodata/" \
     echo ${SLE15_REPOS[*]}
     echo ${SLE12_REPOS[*]}
     echo ${SLE11_REPOS[*]}
-    echo ${SOC_REPOS[*]}
     echo ${LTSS_REPOS[*]}
     usage_maint
     cleanup 1
@@ -2436,14 +2352,6 @@ $PRODUCT_VER$REPO_SP_STRING
                       # all is handled further down
                       : 
     ;;
-    SOC             ) REPO_PRODUCT_FULL="SUSE-OpenStack-Cloud"\
-$PRODUCT_VER$REPO_SP_STRING
-                      POOL_REPO="SUSE-OpenStack-Cloud-"$PRODUCT_VER"-Pool"
-                      SOC_POOL_REPO="OpenStack-Cloud"
-                      UPDATES_REPO="SUSE-OpenStack-Cloud-"$PRODUCT_VER"-Updates"
-                      SOC_UPDATES_REPO="OpenStack-Cloud"
-                      sle12_repo_product_setup $PRODUCT
-    ;;
     WE                ) REPO_PRODUCT_FULL="SLE"$PRODUCT_VER"-"$PRODUCT\
 $REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
@@ -2499,9 +2407,6 @@ SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Updates"
       REPOLIST="$POOL_REPO $UPDATES_REPO"
     fi
     ;;
-  SOC )
-    REPOLIST="$POOL_REPO $UPDATES_REPO"
-    ;;
   SDK  ) 
     if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -ge 4 ]] ; then
       REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
@@ -2555,15 +2460,6 @@ $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $P
           add_repo $REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
 $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
         fi
-      fi
-    elif echo $REPO_PRODUCT | grep -qi openstack-cloud ; then
-      # Hack for SUSE OpenStack Cloud, since it is not SLE.
-      if `echo $REPO|grep -q Pool` ; then
-        add_repo $REAL_REPOBASE$SCC_BASE"Products/"$SOC_POOL_REPO"/"\
-$PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
-      elif `echo $REPO|grep -q Updates` ; then
-        add_repo $REAL_REPOBASE$SCC_BASE"Updates/"$SOC_UPDATES_REPO"/"\
-$PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
       fi
     elif echo $REPO | grep -qi storage ; then
       # Hack for SUSE Enterprise Storage, since it breaks the naming convention.

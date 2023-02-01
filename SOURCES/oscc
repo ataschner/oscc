@@ -191,7 +191,7 @@ echo -e "Updates the cache from the base URL configured in /etc/opt/oscc/oscc.co
 echo -e "  -w '<repo> <arch>'   Wipes and and recreates the repodata cache for the "
 echo -e "                       repository (including architecture) specified as argument".
 echo -e "                       Note the required quotes."
-echo -e "Example : $SCRIPTNAME -w 'SLES11-SP3-Updates sle-11-x86_64'\n"
+echo -e "Example : $SCRIPTNAME -w 'SLES12-SP5-Updates x86_64'\n"
 }
 
 cleanup () {
@@ -246,11 +246,10 @@ SLES12SP5 SLES12SP4 SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
 MOD_LEGACY12 MOD_SYSMGMT12 MOD_WEBSCR12 MOD_CLOUD12 MOD_CONT12 MOD_TOOLCH12 \
 MOD_CERT12 MOD_HPC12 \
 PKGHUB12SP2 PKGHUB12SP3 PKGHUB12SP4 PKGHUB12SP5 \
-SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1 \
-SMT11SP3 SMT11SP2 SMT11SP1 \
-SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 SDK11SP3 SDK11SP2 SDK11SP1 \
+SLES11SP4 \
+SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 \
 SOC6 SOC7 SOC8 \
-HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 HAE11SP3 HAE11SP2 HAE11SP1 \
+HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 \
 WE15 WE15SP1 WE15SP2 WE15SP3 WE15SP4 \
 WE12SP5 WE12SP4 WE12SP3 WE12SP2 WE12SP1 WE12 \
 SES3 SES4"
@@ -259,7 +258,7 @@ read -a SUPPORTED_PRODUCTS <<< $S_PRODUCTS
 # Supported LTSS products
 L_PRODUCTS="SLES15SP3 SLES15SP2 SLES15SP1 SLES15 \
 SLES12SP4 SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
-SLES11SP4 SLES11SP3 SLES11SP2 SLES11SP1"
+SLES11SP4"
 read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 
 # Supported SLE 15 repos
@@ -467,19 +466,8 @@ SUSE-PackageHub-12-SP2-Pool SUSE-PackageHub-12-SP2-Standard-Pool \
 read -a SUPPORTED_SLE12_REPOS <<< $SLE12_REPOS
 
 # Supported SLE 11 repos
-SLE11_REPOS="SLE11-HAE-SP1-Pool SLE11-HAE-SP1-Updates \
-SLE11-HAE-SP2-Pool SLE11-HAE-SP2-Updates \
-SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates \
-SLE11-HAE-SP4-Pool SLE11-HAE-SP4-Updates \
-SLE11-SDK-SP1-Pool SLE11-SDK-SP1-Updates \
-SLE11-SDK-SP2-Core SLE11-SDK-SP2-Updates \
-SLE11-SDK-SP3-Pool SLE11-SDK-SP3-Updates \
+SLE11_REPOS="SLE11-HAE-SP4-Pool SLE11-HAE-SP4-Updates \
 SLE11-SDK-SP4-Pool SLE11-SDK-SP4-Updates \
-SLE11-SMT-SP2-Pool SLE11-SMT-SP2-Updates \
-SLE11-SMT-SP3-Pool SLE11-SMT-SP3-Updates \
-SLES11-SP1-Pool SLES11-SP1-Updates \
-SLES11-SP2-Core SLES11-SP2-Updates \
-SLES11-SP3-Pool SLES11-SP3-Updates \
 SLES11-SP4-Pool SLES11-SP4-Updates"
 read -a SUPPORTED_SLE11_REPOS <<< $SLE11_REPOS
 
@@ -507,10 +495,7 @@ SLES12-SP3-LTSS-Updates \
 SLES12-SP2-LTSS-Updates \
 SLES12-SP1-LTSS-Updates \
 SLES12-LTSS-Updates"
-RCE_LTS_REPOS="SLES11-SP4-LTSS-Updates \
-SLES11-SP3-LTSS-Updates \
-SLES11-SP2-LTSS-Updates \
-SLES11-SP1-LTSS-Updates"
+RCE_LTS_REPOS="SLES11-SP4-LTSS-Updates"
 LTS_REPOS="$SCC_LTS_REPOS $RCE_LTS_REPOS"
 read -a LTSS_REPOS <<< $LTS_REPOS
 
@@ -1184,27 +1169,17 @@ cut -d'.' -f1`
               PRODUCT_LONG=`echo $PRODUCT_LINE|cut -d'|' -f4|cut -c2-`
             fi
           fi
-          # Handle inconsistent product record version data for SMT
-          if [[ $PRODUCT = SMT ]] && \
-             [[ `echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
-|cut -d'"' -f2` = 11 ]] && \
-             [[ `echo ${PRODUCT_LINE#"${PRODUCT_LINE%%release=*}"} \
-|cut -d'"' -f2` = 1.3 ]] ; then 
-            PRODUCT_LONG=$PRODUCT_LONG" SP1"
-            PRODUCT_SP=1
-          else
-            if [ $RAW_PRODUCTS_IN_XML ] ; then
-              PRODUCT_SP_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
+          if [ $RAW_PRODUCTS_IN_XML ] ; then
+            PRODUCT_SP_TMP=`echo ${PRODUCT_LINE#"${PRODUCT_LINE%%version=*}"} \
 |cut -d'"' -f2`
-            else
-              PRODUCT_SP_TMP=`echo $PRODUCT_LINE| cut -d'|' -f5|tr -d ' ' \
+          else
+            PRODUCT_SP_TMP=`echo $PRODUCT_LINE| cut -d'|' -f5|tr -d ' ' \
 |cut -d'-' -f1`
-            fi
-            if [[ `echo $PRODUCT_SP_TMP|grep '\.'` ]] ; then
-              PRODUCT_SP_TMP=`echo $PRODUCT_SP_TMP|cut -d'.' -f2`
-            else
-              PRODUCT_SP_TMP=0
-            fi
+          fi
+          if [[ `echo $PRODUCT_SP_TMP|grep '\.'` ]] ; then
+            PRODUCT_SP_TMP=`echo $PRODUCT_SP_TMP|cut -d'.' -f2`
+          else
+            PRODUCT_SP_TMP=0
           fi
           if [ ! $PRODUCT_SP ] ; then
             PRODUCT_SP=$PRODUCT_SP_TMP
@@ -2564,12 +2539,7 @@ $REPO_SP_STRING
   esac
   case $PRODUCT in 
   SLES ) 
-    if [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 2 ]] ; then
-        REPOLIST="$REPO_PRODUCT"11-SP1-Pool" $REPO_PRODUCT"11-SP1-Updates" \
-$REPO_PRODUCT_FULL"-Core" $REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 3 ]] ; then
-        REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 4 ]] ; then
+    if [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 4 ]] ; then
         REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
     elif [[ $PRODUCT_VER -ge 12 ]] ; then
       REPOLIST="$POOL_REPO $UPDATES_REPO"
@@ -2604,24 +2574,8 @@ SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Updates"
   SES|SOC )
     REPOLIST="$POOL_REPO $UPDATES_REPO"
     ;;
-  SMT  ) 
-    if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -eq 1 ]] ; then
-      # Special setup for SMT 11 SP1
-      # Product has no Pool and updates are published through SLE11-SMT-Updates
-      REPO_PRODUCT_FULL="SLE11-"$PRODUCT
-      REPOLIST="$REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -eq 11 &&  $PRODUCT_SP -ge 2 ]] ; then
-      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
-    fi
-    ;;
   SDK  ) 
-    if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -le 1 ]] || \
-       [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -ge 3 ]] ; then
-      REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 2 ]] ; then
-      REPOLIST="$REPO_PRODUCT"-SP1-Pool" $REPO_PRODUCT"-SP1-Updates" \
-$REPO_PRODUCT_FULL"-Core" $REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -ge 3 ]] ; then
+    if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -ge 4 ]] ; then
       REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
     elif [[ $PRODUCT_VER -ge 12 ]] ; then
       REPOLIST="$POOL_REPO $UPDATES_REPO"

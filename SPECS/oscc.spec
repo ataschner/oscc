@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.5
+Release:      0.6
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -72,6 +72,21 @@ rm -rf %{_repodir}
 
 %changelog
 
+* Thu Feb 02 2023 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3-0.6
+  - Added -v option to show version
+  - Filter out product entries where vendor is not SUSE
+  - Remove SES and SOC parts of configuration file
+  - Cleanup SES leftovers
+  - Remove support for SOC
+  - Remove support for SES
+  - Remove support for SLE 11 SP1 through SP3
+  - Remove support for SLE 10 SP4
+  - Module Certifications on SLES 15 SP3
+  - Workstation Extension on SLES 15 SP3
+  - SLES 15 SP2 and SP3 are now in LTSS
+  - Handle zypper --xmlout option in SLES 15 SP2+
+  - Support SLE 15 SP4
 * Fri Feb 05 2021 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.5
   - Support .bz2 in case of repacked tarballs

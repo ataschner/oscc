@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-SCRIPT_VER="0.3-0.6"
+SCRIPT_VER="0.3-0.7"
 # Analyze if the system in a supportconfig archive is up to date
 # with the currently available versions of installed packages
 # 
@@ -244,6 +244,8 @@ SLES15 \
 MOD_BASESYSTEM15 MOD_CLOUD15 MOD_CONT15 MOD_DESKTOP15 MOD_DEV_TOOLS15 \
 MOD_HPC15 MOD_LEGACY15 MOD_SRV_APPS15 MOD_WEBSCR15 \
 PKGHUB15 \
+SLEMGRTOOLS15 \
+SLEMGRTOOLS12 \
 SLES12SP5 SLES12SP4 SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
 MOD_LEGACY12 MOD_SYSMGMT12 MOD_WEBSCR12 MOD_CLOUD12 MOD_CONT12 MOD_TOOLCH12 \
 MOD_CERT12 MOD_HPC12 \
@@ -415,6 +417,8 @@ SLE-Product-WE15-Pool \
 SLE-Product-WE15-Updates \
 SUSE-PackageHub-15-Backports-Pool \
 SUSE-PackageHub-15-Pool \
+SLE-Manager-Tools-Pool15 \
+SLE-Manager-Tools-Updates15 \
 "
 
 #SUSE-Package-Hub15-Pool \
@@ -462,6 +466,8 @@ SUSE-PackageHub-12-SP5-Pool SUSE-PackageHub-12-SP5-Standard-Pool \
 SUSE-PackageHub-12-SP4-Pool SUSE-PackageHub-12-SP4-Standard-Pool \
 SUSE-PackageHub-12-SP3-Pool SUSE-PackageHub-12-SP3-Standard-Pool \
 SUSE-PackageHub-12-SP2-Pool SUSE-PackageHub-12-SP2-Standard-Pool \
+SLE-Manager-Tools-Pool12 \
+SLE-Manager-Tools-Updates12 \
 "
 read -a SUPPORTED_SLE12_REPOS <<< $SLE12_REPOS
 
@@ -836,6 +842,8 @@ elif `echo $1|grep -qi hae`; then
   PRODUCT=HAE
 elif `echo $1|grep -qi sle-ha`; then
   PRODUCT=HA
+elif `echo $1|grep -qi sle-manager-tools`; then
+  PRODUCT=SLEMGRTOOLS
 elif `echo $1|grep -qi sle-module-adv-systems-management`; then
   PRODUCT=MOD_SYSMGMT
 elif `echo $1|grep -qi sle-module-basesystem`; then
@@ -1524,7 +1532,7 @@ elif [ $NO_PKG_FILES -eq 1 ] ; then
   PKG_FILE_VER_FULL=$LATEST_PKG_FILE_VER_FULL
   # Only one package file found (usually means no updates at all)
   # We are done with this package
-  PKG_HANDLED=Y
+  #PKG_HANDLED=Y
 else
   if echo $PKG_NAME | grep -qiE 'release-dvd|release-cd' ; then 
     push_output "0" "$PKG_NAME is installed, but not found in repos - ignoring" 
@@ -1562,12 +1570,26 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
   else
     unset ARCH_SHOW
   fi
-  REPO_FILELIST=$REPO"_"$ARCH"_"$FILELISTS_XML
-  REPO_FILELIST_GZ=$REPO_FILELIST".gz"
-  REPO_RAW_PKGS=$REPO"_"$ARCH"_raw-pkgs"
-  REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
+  if echo $REPO|grep -qi 'manager-tools' ; then
+    # SLE Manager Tools is SP agnostic and missing version in repo name 
+    REPO_PRODUCT_MAJ_VER=`echo ${REPOS[$REPO_IX]}|cut -d' ' -f4`
+    REPO_FILELIST=$REPO$REPO_PRODUCT_MAJ_VER"_"$ARCH"_"$FILELISTS_XML
+    REPO_FILELIST_GZ=$REPO_FILELIST".gz"
+    REPO_RAW_PKGS=$REPO$REPO_PRODUCT_MAJ_VER"_"$ARCH"_raw-pkgs"
+    REPO_CURRENT_PKGS=$REPO$REPO_PRODUCT_MAJ_VER"_"$ARCH"_current-pkgs"
+  else
+    REPO_FILELIST=$REPO"_"$ARCH"_"$FILELISTS_XML
+    REPO_FILELIST_GZ=$REPO_FILELIST".gz"
+    REPO_RAW_PKGS=$REPO"_"$ARCH"_raw-pkgs"
+    REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
+  fi
   unset REPO_BROKEN
-  check_if_repo_is_empty $REPO_URL $REPO $ARCH
+  if echo $REPO|grep -qi 'manager-tools' ; then
+    # SLE Manager Tools is SP agnostic and missing version in repo name 
+    check_if_repo_is_empty $REPO_URL $REPO$REPO_PRODUCT_MAJ_VER $ARCH
+  else
+    check_if_repo_is_empty $REPO_URL $REPO $ARCH
+  fi
   if [ $REPO_IS_EMPTY ] ; then
     echo "($REPO is empty - skipped)"
     # Ripping out $REPO of the REPOS array
@@ -1576,11 +1598,20 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
   else
     echo $REPO $ARCH_SHOW
     # Fetch and validate the repodata of this repository
-    if `echo $REPO|grep -Eqi '12|15'` ; then
-      if `echo $REPO|grep -qi pool` ; then
-        get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
-      elif `echo $REPO|grep -qi updates` ; then
-        get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+   if echo $REPO|grep -Eqi '12|15' || echo $REPO|grep -qi 'manager-tools' ; then
+      if echo $REPO|grep -qi 'manager-tools' ; then
+        # SLE Manager Tools is SP agnostic and missing version in repo name 
+        if `echo $REPO|grep -qi pool` ; then
+          get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+        elif `echo $REPO|grep -qi updates` ; then
+          get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+        fi
+      else
+        if `echo $REPO|grep -qi pool` ; then
+          get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+        elif `echo $REPO|grep -qi updates` ; then
+          get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+        fi
       fi
     else
       get_repodata "$REAL_REPOBASE$SCC_BASE$REPO"/"$ARCH"/repodata/"" "$REPO" \
@@ -1879,6 +1910,8 @@ elif `echo $1|grep -q "HA"` ; then
   else
     REPO_PRODUCT="SLE-Product-HA"
   fi
+elif `echo $1|grep -qiE "SLEMGRTOOLS|sle-manager-tools"` ; then
+  REPO_PRODUCT="SLE-Manager-Tools"
 elif `echo $1|grep -qiE "MOD_BASESYSTEM|module-basesystem"` ; then
   REPO_PRODUCT="SLE-Module-Basesystem"
 elif `echo $1|grep -qiE "MOD_CERT|certifications"` ; then
@@ -2225,6 +2258,12 @@ $PRODUCT_VER$REPO_SP_STRING
                       UPDATES_REPO="SLE-Module-Basesystem$PRODUCT_VER$REPO_SP_STRING-Updates"
                       sle12_repo_product_setup $PRODUCT
     ;;
+    SLEMGRTOOLS     ) REPO_PRODUCT_FULL="SLE-Manager-Tools"\
+$PRODUCT_VER$REPO_SP_STRINGsle12_repo_product_setup
+                      POOL_REPO="SLE-Manager-Tools-Pool"
+                      UPDATES_REPO="SLE-Manager-Tools-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
     MOD_CERT        ) REPO_PRODUCT_FULL="SLE-Module-Certifications"\
 $PRODUCT_VER$REPO_SP_STRING
                       sle12_repo_product_setup $PRODUCT
@@ -2370,7 +2409,7 @@ $REPO_SP_STRING
       REPOLIST="$POOL_REPO $UPDATES_REPO"
     fi
     ;;
-  MOD_* )
+  MOD_*|SLEMGRTOOL*)
     if [[ $PRODUCT_VER -ge 12 ]] ; then
       REPOLIST="$POOL_REPO $UPDATES_REPO"
     fi
@@ -2885,7 +2924,12 @@ PKG_FILE_IX=0
 for ((IX=0; IX < ${#REPOS[*]} ; IX++)) ; do  
   REPO=`echo ${REPOS[$IX]}|cut -d' ' -f2`
   ARCH=`echo ${REPOS[$IX]}|cut -d' ' -f3`
-  REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
+  if echo $REPO|grep -qi 'manager-tools' ; then
+    # SLE Manager Tools is SP agnostic and missing version in repo name 
+    REPO_CURRENT_PKGS=$REPO$REPO_PRODUCT_MAJ_VER"_"$ARCH"_current-pkgs"
+  else
+    REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
+  fi
   # Get the latest version of the package from each of the 
   # repository-filelists.xml files
   if [ -r $DBDIR$REPO_CURRENT_PKGS ] ; then

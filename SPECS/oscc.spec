@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.6
+Release:      0.7
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -71,6 +71,10 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+
+* Tue Feb 14 2023 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3-0.7
+  - Enable SLE Manager Tools 12 and 15
 
 * Thu Feb 02 2023 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.6

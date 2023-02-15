@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.7
+Release:      0.8
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -71,6 +71,11 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+
+* Wed Feb 15 2023 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3-0.8
+  - Enable SUSE Cloud Application Platform Tools Module
+  - Enable SAP Applications Module
 
 * Tue Feb 14 2023 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.7

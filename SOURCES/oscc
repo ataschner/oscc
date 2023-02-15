@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-SCRIPT_VER="0.3-0.7"
+SCRIPT_VER="0.3-0.8"
 # Analyze if the system in a supportconfig archive is up to date
 # with the currently available versions of installed packages
 # 
@@ -223,26 +223,26 @@ S_PRODUCTS="\
 SLES15SP4 \
 MOD_BASESYSTEM15SP4 MOD_CERT15SP4 MOD_CLOUD15SP4 MOD_CONT15SP4 MOD_DESKTOP15SP4 \
 MOD_DEV_TOOLS15SP4 MOD_HPC15SP4 MOD_LEGACY15SP4 MOD_PYTHON315SP4 \
-MOD_SRV_APPS15SP4 MOD_WEBSCR15SP4 MOD_CAP15SP4 \
+MOD_SRV_APPS15SP4 MOD_WEBSCR15SP4 MOD_CAP15SP4 MOD_SAP_APPS15SP4 \
 PKGHUB15SP4 \
 SLES15SP3 \
 MOD_BASESYSTEM15SP3 MOD_CERT15SP3 MOD_CLOUD15SP3 MOD_CONT15SP3 MOD_DESKTOP15SP3 \
 MOD_DEV_TOOLS15SP3 MOD_HPC15SP3 MOD_LEGACY15SP3 MOD_PYTHON215SP3 \
-MOD_SRV_APPS15SP3 MOD_WEBSCR15SP3 MOD_CAP15SP3 \
+MOD_SRV_APPS15SP3 MOD_WEBSCR15SP3 MOD_CAP15SP3 MOD_SAP_APPS15SP3 \
 PKGHUB15SP3 \
 SLES15SP2 \
 MOD_BASESYSTEM15SP2 MOD_CLOUD15SP2 MOD_CONT15SP2 MOD_DESKTOP15SP2 \
 MOD_DEV_TOOLS15SP2  MOD_HPC15SP2 MOD_LEGACY15SP2 MOD_PYTHON215SP2 \
-MOD_SRV_APPS15SP2 MOD_WEBSCR15SP2 MOD_CAP15SP2 \
+MOD_SRV_APPS15SP2 MOD_WEBSCR15SP2 MOD_CAP15SP2 MOD_SAP_APPS15SP2 \
 PKGHUB15SP2 \
 SLES15SP1 \
 MOD_BASESYSTEM15SP1 MOD_CLOUD15SP1 MOD_CONT15SP1 MOD_DESKTOP15SP1 \
 MOD_DEV_TOOLS15SP1  MOD_HPC15SP1 MOD_LEGACY15SP1 MOD_PYTHON215SP1 \
-MOD_SRV_APPS15SP1 MOD_WEBSCR15SP1 MOD_CAP15SP1 \
+MOD_SRV_APPS15SP1 MOD_WEBSCR15SP1 MOD_CAP15SP1 MOD_SAP_APPS15SP1 \
 PKGHUB15SP1 \
 SLES15 \
 MOD_BASESYSTEM15 MOD_CLOUD15 MOD_CONT15 MOD_DESKTOP15 MOD_DEV_TOOLS15 \
-MOD_HPC15 MOD_LEGACY15 MOD_SRV_APPS15 MOD_WEBSCR15 MOD_CAP15 \
+MOD_HPC15 MOD_LEGACY15 MOD_SRV_APPS15 MOD_WEBSCR15 MOD_CAP15 MOD_SAP_APPS15 \
 PKGHUB15 \
 SLEMGRTOOLS15 \
 SLEMGRTOOLS12 \
@@ -287,6 +287,8 @@ SLE-Module-Public-Cloud15-SP4-Pool \
 SLE-Module-Public-Cloud15-SP4-Updates \
 SLE-Module-Python3-15-SP4-Pool \
 SLE-Module-Python3-15-SP4-Updates \
+SLE-Module-SAP-Applications15-SP4-Pool \
+SLE-Module-SAP-Applications15-SP4-Updates \
 SLE-Module-Server-Applications15-SP4-Pool \
 SLE-Module-Server-Applications15-SP4-Updates \
 SLE-Module-Web-Scripting15-SP4-Pool \
@@ -321,6 +323,8 @@ SLE-Module-Public-Cloud15-SP3-Pool \
 SLE-Module-Public-Cloud15-SP3-Updates \
 SLE-Module-Python2-15-SP3-Pool \
 SLE-Module-Python2-15-SP3-Updates \
+SLE-Module-SAP-Applications15-SP3-Pool \
+SLE-Module-SAP-Applications15-SP3-Updates \
 SLE-Module-Server-Applications15-SP3-Pool \
 SLE-Module-Server-Applications15-SP3-Updates \
 SLE-Module-Web-Scripting15-SP3-Pool \
@@ -353,6 +357,8 @@ SLE-Module-Public-Cloud15-SP2-Pool \
 SLE-Module-Public-Cloud15-SP2-Updates \
 SLE-Module-Python2-15-SP2-Pool \
 SLE-Module-Python2-15-SP2-Updates \
+SLE-Module-SAP-Applications15-SP2-Pool \
+SLE-Module-SAP-Applications15-SP2-Updates \
 SLE-Module-Server-Applications15-SP2-Pool \
 SLE-Module-Server-Applications15-SP2-Updates \
 SLE-Module-Web-Scripting15-SP2-Pool \
@@ -385,6 +391,8 @@ SLE-Module-Public-Cloud15-SP1-Pool \
 SLE-Module-Public-Cloud15-SP1-Updates \
 SLE-Module-Python2-15-SP1-Pool \
 SLE-Module-Python2-15-SP1-Updates \
+SLE-Module-SAP-Applications15-SP1-Pool \
+SLE-Module-SAP-Applications15-SP1-Updates \
 SLE-Module-Server-Applications15-SP1-Pool \
 SLE-Module-Server-Applications15-SP1-Updates \
 SLE-Module-Web-Scripting15-SP1-Pool \
@@ -415,6 +423,8 @@ SLE-Module-Packagehub-Subpackages15-Pool \
 SLE-Module-Packagehub-Subpackages15-Updates \
 SLE-Module-Public-Cloud15-Pool \
 SLE-Module-Public-Cloud15-Updates \
+SLE-Module-SAP-Applications15-Pool \
+SLE-Module-SAP-Applications15-Updates \
 SLE-Module-Server-Applications15-Pool \
 SLE-Module-Server-Applications15-Updates \
 SLE-Module-Web-Scripting15-Pool \
@@ -882,6 +892,8 @@ elif `echo $1|grep -qi sle-module-python3`; then
   PRODUCT=MOD_PYTHON3
 elif `echo $1|grep -qi sle-module-server-applications`; then
   PRODUCT=MOD_SRV_APPS
+elif `echo $1|grep -qi sle-module-sap-applications`; then
+  PRODUCT=MOD_SAP_APPS
 elif `echo $1|grep -qi sle-module-toolchain`; then
   PRODUCT=MOD_TOOLCH
 elif `echo $1|grep -qi sle-module-web-scripting`; then
@@ -1944,6 +1956,8 @@ elif `echo $1|grep -qiE "MOD_HPC|hpc"` ; then
   REPO_PRODUCT="SLE-Module-HPC"
 elif `echo $1|grep -qiE "MOD_LEGACY|legacy"` ; then
     REPO_PRODUCT="SLE-Module-Legacy"
+elif `echo $1|grep -qiE "MOD_SAP_APPS|module-sap-app"` ; then
+  REPO_PRODUCT="SLE-Module-SAP-Applications"
 elif `echo $1|grep -qiE "MOD_SRV_APPS|module-server-app"` ; then
   REPO_PRODUCT="SLE-Module-Server-Applications"
 elif `echo $1|grep -qiE "MOD_PYTHON2|module-python2"` ; then
@@ -2369,6 +2383,12 @@ $PRODUCT_VER$REPO_SP_STRING
 $PRODUCT_VER$REPO_SP_STRING
                       POOL_REPO="SLE-Module-Python3-$PRODUCT_VER$REPO_SP_STRING-Pool"
                       UPDATES_REPO="SLE-Module-Python3-$PRODUCT_VER$REPO_SP_STRING-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_SAP_APPS    ) REPO_PRODUCT_FULL="SLE-Module-SAP-Applications"\
+$PRODUCT_VER$REPO_SP_STRING
+                      POOL_REPO="SLE-Module-SAP-Applications$PRODUCT_VER$REPO_SP_STRING-Pool"
+                      UPDATES_REPO="SLE-Module-SAP-Applications$PRODUCT_VER$REPO_SP_STRING-Updates"
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_SRV_APPS    ) REPO_PRODUCT_FULL="SLE-Module-Server-Applications"\

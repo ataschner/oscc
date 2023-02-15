@@ -223,32 +223,32 @@ S_PRODUCTS="\
 SLES15SP4 \
 MOD_BASESYSTEM15SP4 MOD_CERT15SP4 MOD_CLOUD15SP4 MOD_CONT15SP4 MOD_DESKTOP15SP4 \
 MOD_DEV_TOOLS15SP4 MOD_HPC15SP4 MOD_LEGACY15SP4 MOD_PYTHON315SP4 \
-MOD_SRV_APPS15SP4 MOD_WEBSCR15SP4 \
+MOD_SRV_APPS15SP4 MOD_WEBSCR15SP4 MOD_CAP15SP4 \
 PKGHUB15SP4 \
 SLES15SP3 \
 MOD_BASESYSTEM15SP3 MOD_CERT15SP3 MOD_CLOUD15SP3 MOD_CONT15SP3 MOD_DESKTOP15SP3 \
 MOD_DEV_TOOLS15SP3 MOD_HPC15SP3 MOD_LEGACY15SP3 MOD_PYTHON215SP3 \
-MOD_SRV_APPS15SP3 MOD_WEBSCR15SP3 \
+MOD_SRV_APPS15SP3 MOD_WEBSCR15SP3 MOD_CAP15SP3 \
 PKGHUB15SP3 \
 SLES15SP2 \
 MOD_BASESYSTEM15SP2 MOD_CLOUD15SP2 MOD_CONT15SP2 MOD_DESKTOP15SP2 \
 MOD_DEV_TOOLS15SP2  MOD_HPC15SP2 MOD_LEGACY15SP2 MOD_PYTHON215SP2 \
-MOD_SRV_APPS15SP2 MOD_WEBSCR15SP2 \
+MOD_SRV_APPS15SP2 MOD_WEBSCR15SP2 MOD_CAP15SP2 \
 PKGHUB15SP2 \
 SLES15SP1 \
 MOD_BASESYSTEM15SP1 MOD_CLOUD15SP1 MOD_CONT15SP1 MOD_DESKTOP15SP1 \
 MOD_DEV_TOOLS15SP1  MOD_HPC15SP1 MOD_LEGACY15SP1 MOD_PYTHON215SP1 \
-MOD_SRV_APPS15SP1 MOD_WEBSCR15SP1 \
+MOD_SRV_APPS15SP1 MOD_WEBSCR15SP1 MOD_CAP15SP1 \
 PKGHUB15SP1 \
 SLES15 \
 MOD_BASESYSTEM15 MOD_CLOUD15 MOD_CONT15 MOD_DESKTOP15 MOD_DEV_TOOLS15 \
-MOD_HPC15 MOD_LEGACY15 MOD_SRV_APPS15 MOD_WEBSCR15 \
+MOD_HPC15 MOD_LEGACY15 MOD_SRV_APPS15 MOD_WEBSCR15 MOD_CAP15 \
 PKGHUB15 \
 SLEMGRTOOLS15 \
 SLEMGRTOOLS12 \
 SLES12SP5 SLES12SP4 SLES12SP3 SLES12SP2 SLES12SP1 SLES12 \
 MOD_LEGACY12 MOD_SYSMGMT12 MOD_WEBSCR12 MOD_CLOUD12 MOD_CONT12 MOD_TOOLCH12 \
-MOD_CERT12 MOD_HPC12 \
+MOD_CERT12 MOD_HPC12 MOD_CAP12 \
 PKGHUB12SP2 PKGHUB12SP3 PKGHUB12SP4 PKGHUB12SP5 \
 SLES11SP4 \
 SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 \
@@ -267,6 +267,8 @@ read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 SLE15_REPOS="\
 SLE-Module-Basesystem15-SP4-Pool \
 SLE-Module-Basesystem15-SP4-Updates \
+SLE-Module-CAP-Tools15-SP4-Pool \
+SLE-Module-CAP-Tools15-SP4-Updates \
 SLE-Module-Certifications-15-SP4-Pool \
 SLE-Module-Certifications-15-SP4-Updates \
 SLE-Module-Containers15-SP4-Pool \
@@ -299,6 +301,8 @@ SUSE-PackageHub-15-SP4-Backports-Pool \
 SUSE-PackageHub-15-SP4-Pool \
 SLE-Module-Basesystem15-SP3-Pool \
 SLE-Module-Basesystem15-SP3-Updates \
+SLE-Module-CAP-Tools15-SP3-Pool \
+SLE-Module-CAP-Tools15-SP3-Updates \
 SLE-Module-Certifications-15-SP3-Pool \
 SLE-Module-Certifications-15-SP3-Updates \
 SLE-Module-Containers15-SP3-Pool \
@@ -331,6 +335,8 @@ SUSE-PackageHub-15-SP3-Backports-Pool \
 SUSE-PackageHub-15-SP3-Pool \
 SLE-Module-Basesystem15-SP2-Pool \
 SLE-Module-Basesystem15-SP2-Updates \
+SLE-Module-CAP-Tools15-SP2-Pool \
+SLE-Module-CAP-Tools15-SP2-Updates \
 SLE-Module-Containers15-SP2-Pool \
 SLE-Module-Containers15-SP2-Updates \
 SLE-Module-Desktop-Applications15-SP2-Pool \
@@ -361,6 +367,8 @@ SUSE-PackageHub-15-SP2-Backports-Pool \
 SUSE-PackageHub-15-SP2-Pool \
 SLE-Module-Basesystem15-SP1-Pool \
 SLE-Module-Basesystem15-SP1-Updates \
+SLE-Module-CAP-Tools15-SP1-Pool \
+SLE-Module-CAP-Tools15-SP1-Updates \
 SLE-Module-Containers15-SP1-Pool \
 SLE-Module-Containers15-SP1-Updates \
 SLE-Module-Desktop-Applications15-SP1-Pool \
@@ -391,6 +399,8 @@ SUSE-PackageHub-15-SP1-Backports-Pool \
 SUSE-PackageHub-15-SP1-Pool \
 SLE-Module-Basesystem15-Pool \
 SLE-Module-Basesystem15-Updates \
+SLE-Module-CAP-Tools15-Pool \
+SLE-Module-CAP-Tools15-Updates \
 SLE-Module-Containers15-Pool \
 SLE-Module-Containers15-Updates \
 SLE-Module-Desktop-Applications15-Pool \
@@ -447,6 +457,8 @@ SLE-SDK12-SP1-Pool SLE-SDK12-SP1-Updates \
 SLE-SDK12-Pool SLE-SDK12-Updates \
 SLE-Module-Adv-Systems-Management12-Pool \
 SLE-Module-Adv-Systems-Management12-Updates \
+SLE-Module-CAP-Tools12-Pool \
+SLE-Module-CAP-Tools12-Updates \
 SLE-Module-Certifications12-Pool \
 SLE-Module-Certifications12-Updates \
 SLE-Module-Containers12-Pool SLE-Module-Containers12-Updates \
@@ -850,6 +862,8 @@ elif `echo $1|grep -qi sle-module-basesystem`; then
   PRODUCT=MOD_BASESYSTEM
 elif `echo $1|grep -qi sle-module-certifications`; then
   PRODUCT=MOD_CERT
+elif `echo $1|grep -qi sle-module-cap-tools`; then
+  PRODUCT=MOD_CAP
 elif `echo $1|grep -qi sle-module-container`; then
   PRODUCT=MOD_CONT
 elif `echo $1|grep -qi sle-module-desktop-applications`; then
@@ -1914,6 +1928,8 @@ elif `echo $1|grep -qiE "SLEMGRTOOLS|sle-manager-tools"` ; then
   REPO_PRODUCT="SLE-Manager-Tools"
 elif `echo $1|grep -qiE "MOD_BASESYSTEM|module-basesystem"` ; then
   REPO_PRODUCT="SLE-Module-Basesystem"
+elif `echo $1|grep -qiE "MOD_CAP|cap-tools"` ; then
+  REPO_PRODUCT="SLE-Module-CAP-Tools"
 elif `echo $1|grep -qiE "MOD_CERT|certifications"` ; then
   REPO_PRODUCT="SLE-Module-Certifications"
 elif `echo $1|grep -qiE "MOD_CONT|containers"` ; then
@@ -2262,6 +2278,17 @@ $PRODUCT_VER$REPO_SP_STRING
 $PRODUCT_VER$REPO_SP_STRINGsle12_repo_product_setup
                       POOL_REPO="SLE-Manager-Tools-Pool"
                       UPDATES_REPO="SLE-Manager-Tools-Updates"
+                      sle12_repo_product_setup $PRODUCT
+    ;;
+    MOD_CAP        ) REPO_PRODUCT_FULL="SLE-Module-CAP-Tools"\
+$PRODUCT_VER$REPO_SP_STRING
+                      if [[ $PRODUCT_VER -eq 12 ]] ; then
+                        POOL_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER"-Pool"
+                        UPDATES_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER"-Updates"
+                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                        POOL_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER$REPO_SP_STRING"-Pool"
+                        UPDATES_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER$REPO_SP_STRING"-Updates"
+                      fi
                       sle12_repo_product_setup $PRODUCT
     ;;
     MOD_CERT        ) REPO_PRODUCT_FULL="SLE-Module-Certifications"\

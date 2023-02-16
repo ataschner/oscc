@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.8
+Release:      0.9
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -12,7 +12,7 @@ Summary:      Offline check of patchlevel of system in supportconfig archive
 Source0:      oscc
 Source1:      oscc-repos.tar.bz2
 Source2:      oscc.conf
-Requires:     bash
+Requires:     bash,bzip2
 Autoreqprov:  on
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 BuildArch:    noarch
@@ -71,6 +71,9 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+* Thu Feb 16 2023 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3-0.9
+  - Added RPM dependency on bzip2
 
 * Wed Feb 15 2023 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.8

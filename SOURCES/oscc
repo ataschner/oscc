@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-SCRIPT_VER="0.3-0.8"
+SCRIPT_VER="0.3-0.10"
 # Analyze if the system in a supportconfig archive is up to date
 # with the currently available versions of installed packages
 # 
@@ -220,6 +220,11 @@ SUPPORTED_ARCHS="i586 x86_64"
 
 # Supported products
 S_PRODUCTS="\
+SLES15SP5 \
+MOD_BASESYSTEM15SP5 MOD_CERT15SP5 MOD_CLOUD15SP5 MOD_CONT15SP5 MOD_DESKTOP15SP5 \
+MOD_DEV_TOOLS15SP5 MOD_HPC15SP5 MOD_LEGACY15SP5 MOD_PYTHON315SP5 \
+MOD_SRV_APPS15SP5 MOD_WEBSCR15SP5 MOD_SAP_APPS15SP5 \
+PKGHUB15SP5 \
 SLES15SP4 \
 MOD_BASESYSTEM15SP4 MOD_CERT15SP4 MOD_CLOUD15SP4 MOD_CONT15SP4 MOD_DESKTOP15SP4 \
 MOD_DEV_TOOLS15SP4 MOD_HPC15SP4 MOD_LEGACY15SP4 MOD_PYTHON315SP4 \
@@ -252,8 +257,8 @@ MOD_CERT12 MOD_HPC12 MOD_CAP12 \
 PKGHUB12SP2 PKGHUB12SP3 PKGHUB12SP4 PKGHUB12SP5 \
 SLES11SP4 \
 SDK12SP5 SDK12SP4 SDK12SP3 SDK12SP2 SDK12SP1 SDK12 SDK11SP4 \
-HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 \
-WE15 WE15SP1 WE15SP2 WE15SP3 WE15SP4 \
+HA15SP5 HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 HA12SP3 HA12SP2 HA12SP1 HA12 HAE11SP4 \
+WE15 WE15SP1 WE15SP2 WE15SP3 WE15SP4 WE15SP5 \
 WE12SP5 WE12SP4 WE12SP3 WE12SP2 WE12SP1 WE12"
 read -a SUPPORTED_PRODUCTS <<< $S_PRODUCTS
 
@@ -265,6 +270,42 @@ read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 
 # Supported SLE 15 repos
 SLE15_REPOS="\
+SLE-Module-Basesystem15-SP5-Pool \
+SLE-Module-Basesystem15-SP5-Updates \
+SLE-Module-CAP-Tools15-SP5-Pool \
+SLE-Module-CAP-Tools15-SP5-Updates \
+SLE-Module-Certifications-15-SP5-Pool \
+SLE-Module-Certifications-15-SP5-Updates \
+SLE-Module-Containers15-SP5-Pool \
+SLE-Module-Containers15-SP5-Updates \
+SLE-Module-Desktop-Applications15-SP5-Pool \
+SLE-Module-Desktop-Applications15-SP5-Updates \
+SLE-Module-Development-Tools15-SP5-Pool \
+SLE-Module-Development-Tools15-SP5-Updates \
+SLE-Module-HPC15-SP5-Pool \
+SLE-Module-HPC15-SP5-Updates \
+SLE-Module-Legacy15-SP5-Pool \
+SLE-Module-Legacy15-SP5-Updates \
+SLE-Module-Packagehub-Subpackages15-SP5-Pool \
+SLE-Module-Packagehub-Subpackages15-SP5-Updates \
+SLE-Module-Public-Cloud15-SP5-Pool \
+SLE-Module-Public-Cloud15-SP5-Updates \
+SLE-Module-Python3-15-SP5-Pool \
+SLE-Module-Python3-15-SP5-Updates \
+SLE-Module-SAP-Applications15-SP5-Pool \
+SLE-Module-SAP-Applications15-SP5-Updates \
+SLE-Module-Server-Applications15-SP5-Pool \
+SLE-Module-Server-Applications15-SP5-Updates \
+SLE-Module-Web-Scripting15-SP5-Pool \
+SLE-Module-Web-Scripting15-SP5-Updates \
+SLE-Product-HA15-SP5-Pool \
+SLE-Product-HA15-SP5-Updates \
+SLE-Product-SLES15-SP5-Pool \
+SLE-Product-SLES15-SP5-Updates \
+SLE-Product-WE15-SP5-Pool \
+SLE-Product-WE15-SP5-Updates \
+SUSE-PackageHub-15-SP5-Backports-Pool \
+SUSE-PackageHub-15-SP5-Pool \
 SLE-Module-Basesystem15-SP4-Pool \
 SLE-Module-Basesystem15-SP4-Updates \
 SLE-Module-CAP-Tools15-SP4-Pool \

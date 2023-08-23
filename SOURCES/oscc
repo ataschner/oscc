@@ -1636,10 +1636,10 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
   if echo $REPO|grep -qi 'manager-tools' ; then
     # SLE Manager Tools is SP agnostic and missing version in repo name 
     REPO_PRODUCT_MAJ_VER=`echo ${REPOS[$REPO_IX]}|cut -d' ' -f4`
-    REPO_FILELIST=$REPO$REPO_PRODUCT_MAJ_VER"_"$ARCH"_"$FILELISTS_XML
+    REPO_FILELIST=$REPO"_"$ARCH"_"$FILELISTS_XML
     REPO_FILELIST_GZ=$REPO_FILELIST".gz"
-    REPO_RAW_PKGS=$REPO$REPO_PRODUCT_MAJ_VER"_"$ARCH"_raw-pkgs"
-    REPO_CURRENT_PKGS=$REPO$REPO_PRODUCT_MAJ_VER"_"$ARCH"_current-pkgs"
+    REPO_RAW_PKGS=$REPO"_"$ARCH"_raw-pkgs"
+    REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
   else
     REPO_FILELIST=$REPO"_"$ARCH"_"$FILELISTS_XML
     REPO_FILELIST_GZ=$REPO_FILELIST".gz"

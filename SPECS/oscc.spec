@@ -2,7 +2,7 @@
 
 Name:         oscc 
 Version:      0.3
-Release:      0.9
+Release:      0.10
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -71,6 +71,12 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+* Wed Aug 23 2023 - Andreas Taschner <ataschner@suse.com>
+- Version 0.3-0.10
+  - Support for SLE 15 SP5
+  - Fix bug in update_repo_cache
+  - SUSE CAP Tools Module deprecated in SLE 15 SP4+
+  
 * Thu Feb 16 2023 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.9
   - Added RPM dependency on bzip2

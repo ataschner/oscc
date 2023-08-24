@@ -799,7 +799,7 @@ if [ -r $SCONFIG.md5 ] ; then
   fi
 fi
 cd $TEMPDIR1
-if echo `file $SCONFIG`|grep -qiE 'bzip2|xz' ; then
+if echo `file $SCONFIG`|grep -qiE 'bzip2|xz|gzip' ; then
   TAR_UNPACK_CMD="tar -xf"
   TAR_TOC_CMD="tar -tf"
 else
@@ -3141,7 +3141,7 @@ else
   done
   if ! [ $MAINT_MODE ] ; then
     eval SCONFIG='$'{$#}
-    if ! [ `echo $SCONFIG|egrep '\.txz|\.tbz|\.bz2|\.xz'` ] ; then
+    if ! [ `echo $SCONFIG|egrep '\.tgz|\.txz|\.tbz|\.bz2|\.xz'` ] ; then
       echo "Invalid supportconfig archive specified : $SCONFIG"
       usage
       exit 1

@@ -1408,9 +1408,11 @@ get_filelists_info () {
 # Since there may be multiple instances of *-filelists.xml.gz we have to 
 # derive the current one from repomd.xml
 unset UPSTREAM_FILELISTS_XML_ARCHV
-UPSTREAM_FILELISTS_XML_ARCHV=`grep filelists.xml.gz $TEMPFILE2 \
+UPSTREAM_FILELISTS_XML_ARCHV=`cat $TEMPFILE2 \
+  |xmllint --format - |grep filelists.xml.gz \
   |grep -o 'repodata[^\n]*' |cut -d'/' -f2|tr -d '"'`
-UPSTREAM_REPODATA_MTS=`sed -n '/filelists.xml.gz/,/data/p' $TEMPFILE2 \
+UPSTREAM_REPODATA_MTS=`cat $TEMPFILE2 |xmllint --format - \
+  |sed -n '/filelists.xml.gz/,/data/p' \
   |grep timestamp |cut -d'>' -f2|cut -d'<' -f1`
 if ! [ $UPSTREAM_FILELISTS_XML_ARCHV ] ; then
   REPO_IS_EMPTY=Y

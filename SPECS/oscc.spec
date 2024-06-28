@@ -12,7 +12,7 @@ Summary:      Offline check of patchlevel of system in supportconfig archive
 Source0:      oscc
 Source1:      oscc-repos.tar.bz2
 Source2:      oscc.conf
-Requires:     bash,bzip2
+Requires:     bash,bzip2,xmllint
 Autoreqprov:  on
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 BuildArch:    noarch

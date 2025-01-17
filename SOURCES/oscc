@@ -264,7 +264,8 @@ SLES11SP4 \
 SDK12SP5 SDK12SP4 \
 HA15SP5 HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 \
 WE15 WE15SP1 WE15SP2 WE15SP3 WE15SP4 WE15SP5 \
-WE12SP5 WE12SP4"
+WE12SP5 WE12SP4 \
+EXT_SEC12SP5"
 read -a SUPPORTED_PRODUCTS <<< $S_PRODUCTS
 
 # Supported LTSS products
@@ -548,7 +549,8 @@ SUSE-PackageHub-12-SP5-Pool SUSE-PackageHub-12-SP5-Standard-Pool \
 SUSE-PackageHub-12-SP4-Pool SUSE-PackageHub-12-SP4-Standard-Pool \
 SLE-Manager-Tools-Pool12 \
 SLE-Manager-Tools-Updates12 \
-"
+SLES12-SP5-LTSS-Extended-Security-Updates"
+
 read -a SUPPORTED_SLE12_REPOS <<< $SLE12_REPOS
 
 # Supported SLE 11 repos
@@ -909,7 +911,7 @@ fi
 
 get_product () {
 # Set the standardized product name
-if `echo $1|grep -qi sles` ; then
+if `echo $1|grep -qi sles` && ! `echo $1|grep -qi extended-security`; then
   PRODUCT=SLES
 elif `echo $1|grep -qi sled` ; then
   PRODUCT=SLED
@@ -959,6 +961,8 @@ elif `echo $1|grep -qi smt` ; then
   PRODUCT=SMT
 elif `echo $1|grep -qEi 'packagehub'` ; then
   PRODUCT=PKGHUB
+elif `echo $1|grep -qi extended-security`; then
+  PRODUCT=EXT_SEC
 else
   PRODUCT=$1
 fi
@@ -1202,8 +1206,13 @@ cut -d'.' -f1`
           # If service pack > 0 add it to the product string
           get_sp_string $PRODUCT_SP
           # Add product to array of installed products
-          add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
+          if [[ $PRODUCT == "EXT_SEC" ]] ; then
+            add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
+"#"$PRODUCT_LONG"#"$PRODUCT$PRODUCT_VER$SP_STRING"
+          else
+            add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
 "#"$PRODUCT_LONG $BASE_PRODUCT_VER $SP_STRING"#"$PRODUCT$PRODUCT_VER$SP_STRING"
+          fi
         fi
       done < "$TEMPFILE1"
     else
@@ -1887,6 +1896,11 @@ $PRODUCT_VER$REPO_SP_STRING"_"$PH_REPO_ARCH"/product/repodata/" \
 $PH_REPO $PH_REPO_ARCH $PRODUCT_VER
       fi
       # END Package-Hub
+    elif `echo $REPO_PRODUCT|grep -qi extended-sec` ; then
+      # LTSS Extended Security 
+      add_repo "$REAL_REPOBASE$SCC_BASE"Updates/SLE-SERVER/"\
+"12-SP5-LTSS-Extended-Security/"${SLE12_ARCHS[$ARCH_IX]}"/update/repodata/" \
+${SLE12_REPOS[$SLE_12_REPO_IX]} ${SLE12_ARCHS[$ARCH_IX]} $PRODUCT_VER"
     elif `echo ${SLE12_REPOS[$SLE_12_REPO_IX]}|grep -qi pool` ; then
       add_repo "$REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
 $PRODUCT_VER$REPO_SP_STRING"/"${SLE12_ARCHS[$ARCH_IX]}"/product/repodata/" \
@@ -1979,7 +1993,7 @@ sle12_repo_product_setup () {
 # Preliminary product detection for SLE 12
 # Arguments : $1 is the repository name string
 SCC_BASE="SUSE/"
-if `echo $1|grep -q SLES` ; then
+if `echo $1|grep -q SLES` && ! `echo $1|grep -qi extended-security`; then
   if [[ $PRODUCT_VER -eq 12 ]] ; then
     REPO_PRODUCT="SLE-SERVER"
   else
@@ -2029,6 +2043,8 @@ elif `echo $1|grep -qiE "MOD_WEBSCR|web-scr"` ; then
     REPO_PRODUCT="SLE-Module-Web-Scripting"
 elif `echo $1|grep -qiE "PKGHUB|packagehub"` ; then
   REPO_PRODUCT="SUSE-Package-Hub"
+elif `echo $1|grep -qiE "EXT_SEC|extended-secu"` ; then
+  REPO_PRODUCT="SLES-LTSS-Extended-Security"
 elif `echo $1|grep -qiE "WE"` ; then
   if [[ $PRODUCT_VER -eq 12 ]] ; then
     REPO_PRODUCT="SLE-WE"
@@ -2039,11 +2055,15 @@ else
   echo "Error in product setup"
   cleanup 1
 fi
-if [[ ! $REPO_SP_STRING ]] && $(echo $1|grep -q '\-SP.\-') ; then
-  REPO_SP_STRING="-"$(echo $1 | sed 's/.*\(-SP.\)/\1/'|cut -d- -f2)
-fi
-if echo $1|grep -q 'LTSS' ; then
-  REPO_SP_STRING=$REPO_SP_STRING"-LTSS"
+if `echo $REPO_PRODUCT|grep -qi extended-sec` ; then
+  unset $REPO_SP_STRING
+else 
+  if [[ ! $REPO_SP_STRING ]] && $(echo $1|grep -q '\-SP.\-') ; then
+    REPO_SP_STRING="-"$(echo $1 | sed 's/.*\(-SP.\)/\1/'|cut -d- -f2)
+  fi
+  if echo $1|grep -q 'LTSS' ; then
+    REPO_SP_STRING=$REPO_SP_STRING"-LTSS"
+  fi
 fi
 }
 
@@ -2134,6 +2154,10 @@ $REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
           echo "PRODUCT_SP    : $PRODUCT_SP"
           cleanup 1
         fi
+      elif `echo $REPO_TO_FIX|grep -qi extended-sec` ; then
+          get_repodata $REAL_REPOBASE$SCC_BASE"Updates/SLE-SERVER/"\
+"12-SP5-LTSS-Extended-Security/"$REPO_ARCH"/update/repodata/" \
+$REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
       elif $(echo $REPO_TO_FIX|grep -qE "SLES") && \
          $(echo $REPO_TO_FIX|grep -qE "12|15") ||
          $(echo $REPO_TO_FIX|grep -qE "SLE-") && \
@@ -2292,7 +2316,11 @@ for ((PRODUCTS_IX=0; PRODUCTS_IX < ${#PRODUCTS[*]}; PRODUCTS_IX++)) ; do
   if [[ $PRODUCT_SP -ne 0 ]] ; then
     REPO_SP_STRING="-SP"$PRODUCT_SP
   fi
-  NICE_PROD_NAME="$PRODUCT_LONG_WO_SP `echo $REPO_SP_STRING|tr -d '-'`"
+  if [[ $PRODUCT == "EXT_SEC" ]] ; then
+    NICE_PROD_NAME="$PRODUCT_LONG_WO_SP"
+  else
+    NICE_PROD_NAME="$PRODUCT_LONG_WO_SP `echo $REPO_SP_STRING|tr -d '-'`"
+  fi
   push_output "0" "$NICE_PROD_NAME"
   case $PRODUCT in
     SDK|SMT         ) REPO_PRODUCT_FULL="SLE"$PRODUCT_VER"-"$PRODUCT\
@@ -2484,6 +2512,12 @@ $PRODUCT_VER$REPO_SP_STRING
                       # all is handled further down
                       : 
     ;;
+    EXT_SEC         ) REPO_PRODUCT_FULL="SLES-LTSS-Extended-Security"\
+$PRODUCT_VER$REPO_SP_STRING
+                      UPDATES_REPO="SLES12-SP5-LTSS-Extended-Security-Updates"
+                      # Extended-Security only has an Updates repo
+                      # Handle further down
+    ;;
     WE                ) REPO_PRODUCT_FULL="SLE"$PRODUCT_VER"-"$PRODUCT\
 $REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
@@ -2546,6 +2580,10 @@ SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Updates"
       REPOLIST="$POOL_REPO $UPDATES_REPO"
     fi
     ;;
+  EXT_SEC )
+    # Only offered for SLES 12 SP5 
+    REPOLIST="SLES12-SP5-LTSS-Extended-Security-Updates"
+    ;;
   *    ) 
     echo "Repo setup blooper - exiting..."
     echo "REPO_PRODUCT  : $REPO_PRODUCT"
@@ -2584,6 +2622,11 @@ $REPO $REPO_ARCH $PRODUCT_VER
 $PRODUCT_VER$REPO_SP_STRING"_"$REPO_ARCH"/product/repodata/" \
 $REPO $REPO_ARCH $PRODUCT_VER
         fi
+      elif `echo $REPO|grep -qi extended-security` ; then
+        # Extended Security only has one repo
+        add_repo $REAL_REPOBASE$SCC_BASE"Updates/SLE-SERVER/"\
+"12-SP5-LTSS-Extended-Security/"$REPO_ARCH"/update/repodata/" \
+$REPO $REPO_ARCH $PRODUCT_VER
       else
         if `echo $REPO|grep -qi pool` ; then
           add_repo $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
@@ -3190,7 +3233,6 @@ fi
 validate_archive
 # Build list of products in PRODUCTS[]
 detect_products
-#dump_array PRODUCTS
 # Mount repository URL if on NFS
 chew_repo_base
 # Populate REPOS[] with applicable repositories for each product in $PRODUCTS[]

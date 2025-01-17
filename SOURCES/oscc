@@ -1676,12 +1676,6 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
     REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
   fi
   unset REPO_BROKEN
-  if echo $REPO|grep -qi 'manager-tools' ; then
-    # SLE Manager Tools is SP agnostic and missing version in repo name 
-    check_if_repo_is_empty $REPO_URL $REPO$REPO_PRODUCT_MAJ_VER $ARCH
-  else
-    check_if_repo_is_empty $REPO_URL $REPO $ARCH
-  fi
   if [ $REPO_IS_EMPTY ] ; then
     echo "($REPO is empty - skipped)"
     # Ripping out $REPO of the REPOS array

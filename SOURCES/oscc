@@ -1709,13 +1709,13 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
       # Extract package names and their versions from filelists.xml
       if [[ $(grep -A1 -m1 '<packa' $REPO_FILELIST"_new"|wc -l) -gt 1 ]] ; then
         grep -A1 'name=\"' $REPO_FILELIST"_new"|grep -vE '^--|<file ' \
-          |sed 'N;s/\n/ /'|grep -v 'src>'|tr -d '"'|sed 's/  */ /g' \
+          |sed 'N;s/\n/ /'|grep -v 'src\>'|tr -d '"'|sed 's/  */ /g' \
           |sed 's/^ *//g'|cut -d' ' -f1,3-|grep -v '^$' \
           |sort  > $REPO_RAW_PKGS"_new"
       else
         grep -A1 'name=\"' $REPO_FILELIST"_new"|tr -d '"' \
-          |sed 's/  */ /g' |sed 's/^ *//g'|cut -d' ' -f1,3-7|cut -d'/' -f1 \
-          |grep -v '^$'|sort  > $REPO_RAW_PKGS"_new"
+          |sed 's/  */ /g' |sed 's/^ *//g'|cut -d' ' -f1,3-7|grep -v 'src\>' \
+          |cut -d'/' -f1|grep -v '^$'|sort  > $REPO_RAW_PKGS"_new"
       fi
       # Identify changes with a simple diff
       diff -u $DBDIR$REPO_RAW_PKGS $REPO_RAW_PKGS"_new"|grep -E '^\+|^\-' \
@@ -1928,13 +1928,13 @@ create_repo_cache () {
 # Extract all packages in $REPO
 if [[ $(grep -A1 -m1 '<packa' $DBDIR$REPO_FILELIST|wc -l) -gt 1 ]] ; then
   grep -A1 'name=\"' $DBDIR$REPO_FILELIST|grep -vE '^--|<file ' \
-    |sed 'N;s/\n/ /'|grep -v 'src>'|tr -d '"'|sed 's/  */ /g' \
+    |sed 'N;s/\n/ /'|grep -v 'src\>'|tr -d '"'|sed 's/  */ /g' \
     |sed 's/^ *//g'|cut -d' ' -f1,3-|grep -v '^$' \
     |sort  > $DBDIR$REPO_RAW_PKGS
 else
   grep -A1 'name=\"' $DBDIR$REPO_FILELIST|tr -d '"' \
-    |sed 's/  */ /g' |sed 's/^ *//g'|cut -d' ' -f1,3-7|cut -d'/' -f1 \
-    |grep -v '^$'|sort  > $DBDIR$REPO_RAW_PKGS
+    |sed 's/  */ /g' |sed 's/^ *//g'|grep -v 'src\>'|cut -d' ' -f1,3-7 \
+    |cut -d'/' -f1|grep -v '^$'|sort  > $DBDIR$REPO_RAW_PKGS
 fi
 if [[ $(wc -l $DBDIR$REPO_RAW_PKGS|cut -d' ' -f1) -lt 1 ]] ; then
   echo "Unknown error while creating the repository cache for $REPO"

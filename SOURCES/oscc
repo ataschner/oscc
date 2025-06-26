@@ -1926,17 +1926,21 @@ create_repo_cache () {
 # LTSS repository, which only gets created post install. We can not
 # ship the LTSS repodata with the package for legal reasons.
 # Extract all packages in $REPO
-if [[ $(grep -A1 -m1 '<packa' $DBDIR$REPO_FILELIST|wc -l) -gt 1 ]] ; then
+unset REPO_IS_EMPTY
+if [[ $(grep -A1 -m1 '<packa' $DBDIR$REPO_FILELIST|wc -l) -ge 1 ]] ; then
   grep -A1 'name=\"' $DBDIR$REPO_FILELIST|grep -vE '^--|<file ' \
     |sed 'N;s/\n/ /'|grep -v 'src\>'|tr -d '"'|sed 's/  */ /g' \
     |sed 's/^ *//g'|cut -d' ' -f1,3-|grep -v '^$' \
     |sort  > $DBDIR$REPO_RAW_PKGS
-else
+elif [[ $(grep -A1 -m1 'name=\"' $DBDIR$REPO_FILELIST|wc -l) -ge 1 ]] ; then
   grep -A1 'name=\"' $DBDIR$REPO_FILELIST|tr -d '"' \
     |sed 's/  */ /g' |sed 's/^ *//g'|grep -v 'src\>'|cut -d' ' -f1,3-7 \
     |cut -d'/' -f1|grep -v '^$'|sort  > $DBDIR$REPO_RAW_PKGS
+else 
+  REPO_EMPTY=y
+  echo "Repository $REPO $REPO_ARCH is empty"
 fi
-if [[ $(wc -l $DBDIR$REPO_RAW_PKGS|cut -d' ' -f1) -lt 1 ]] ; then
+if ! [[ $REPO_EMPTY] && $(wc -l $DBDIR$REPO_RAW_PKGS|cut -d' ' -f1) -lt 1 ]] ; then
   echo "Unknown error while creating the repository cache for $REPO"
   echo "Exiting"
   cleanup 1

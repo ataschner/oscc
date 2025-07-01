@@ -220,6 +220,10 @@ SUPPORTED_ARCHS="i586 x86_64"
 
 # Supported products
 S_PRODUCTS="\
+MOD_BASESYSTEM15SP7 MOD_CERT15SP7 MOD_CLOUD15SP7 MOD_CONT15SP7 MOD_DESKTOP15SP7 \
+MOD_DEV_TOOLS15SP7 MOD_HPC15SP7 MOD_LEGACY15SP7 MOD_PYTHON315SP7 \
+MOD_SRV_APPS15SP7 MOD_WEBSCR15SP7 MOD_SAP_APPS15SP7 \
+PKGHUB15SP7 \
 SLES15SP6 \
 MOD_BASESYSTEM15SP6 MOD_CERT15SP6 MOD_CLOUD15SP6 MOD_CONT15SP6 MOD_DESKTOP15SP6 \
 MOD_DEV_TOOLS15SP6 MOD_HPC15SP6 MOD_LEGACY15SP6 MOD_PYTHON315SP6 \
@@ -276,6 +280,40 @@ read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 
 # Supported SLE 15 repos
 SLE15_REPOS="\
+SLE-Module-Basesystem15-SP7-Pool \
+SLE-Module-Basesystem15-SP7-Updates \
+SLE-Module-Certifications-15-SP7-Pool \
+SLE-Module-Certifications-15-SP7-Updates \
+SLE-Module-Containers15-SP7-Pool \
+SLE-Module-Containers15-SP7-Updates \
+SLE-Module-Desktop-Applications15-SP7-Pool \
+SLE-Module-Desktop-Applications15-SP7-Updates \
+SLE-Module-Development-Tools15-SP7-Pool \
+SLE-Module-Development-Tools15-SP7-Updates \
+SLE-Module-HPC15-SP7-Pool \
+SLE-Module-HPC15-SP7-Updates \
+SLE-Module-Legacy15-SP7-Pool \
+SLE-Module-Legacy15-SP7-Updates \
+SLE-Module-Packagehub-Subpackages15-SP7-Pool \
+SLE-Module-Packagehub-Subpackages15-SP7-Updates \
+SLE-Module-Public-Cloud15-SP7-Pool \
+SLE-Module-Public-Cloud15-SP7-Updates \
+SLE-Module-Python3-15-SP7-Pool \
+SLE-Module-Python3-15-SP7-Updates \
+SLE-Module-SAP-Applications15-SP7-Pool \
+SLE-Module-SAP-Applications15-SP7-Updates \
+SLE-Module-Server-Applications15-SP7-Pool \
+SLE-Module-Server-Applications15-SP7-Updates \
+SLE-Module-Web-Scripting15-SP7-Pool \
+SLE-Module-Web-Scripting15-SP7-Updates \
+SLE-Product-HA15-SP7-Pool \
+SLE-Product-HA15-SP7-Updates \
+SLE-Product-SLES15-SP7-Pool \
+SLE-Product-SLES15-SP7-Updates \
+SLE-Product-WE15-SP7-Pool \
+SLE-Product-WE15-SP7-Updates \
+SUSE-PackageHub-15-SP7-Backports-Pool \
+SUSE-PackageHub-15-SP7-Pool \
 SLE-Module-Basesystem15-SP6-Pool \
 SLE-Module-Basesystem15-SP6-Updates \
 SLE-Module-Certifications-15-SP6-Pool \
@@ -1926,7 +1964,7 @@ create_repo_cache () {
 # LTSS repository, which only gets created post install. We can not
 # ship the LTSS repodata with the package for legal reasons.
 # Extract all packages in $REPO
-unset REPO_EMPTY
+unset REPO_IS_EMPTY
 if [[ $(grep -A1 -m1 '<packa' $DBDIR$REPO_FILELIST|wc -l) -ge 1 ]] ; then
   grep -A1 'name=\"' $DBDIR$REPO_FILELIST|grep -vE '^--|<file ' \
     |sed 'N;s/\n/ /'|grep -v 'src\>'|tr -d '"'|sed 's/  */ /g' \

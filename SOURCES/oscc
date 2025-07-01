@@ -1926,7 +1926,7 @@ create_repo_cache () {
 # LTSS repository, which only gets created post install. We can not
 # ship the LTSS repodata with the package for legal reasons.
 # Extract all packages in $REPO
-unset REPO_IS_EMPTY
+unset REPO_EMPTY
 if [[ $(grep -A1 -m1 '<packa' $DBDIR$REPO_FILELIST|wc -l) -ge 1 ]] ; then
   grep -A1 'name=\"' $DBDIR$REPO_FILELIST|grep -vE '^--|<file ' \
     |sed 'N;s/\n/ /'|grep -v 'src\>'|tr -d '"'|sed 's/  */ /g' \

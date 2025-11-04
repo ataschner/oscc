@@ -1992,44 +1992,45 @@ if [[ ! $REPO_EMPTY && $(wc -l $DBDIR$REPO_RAW_PKGS|cut -d' ' -f1) -lt 1 ]] ; th
 fi
 rm $TEMPFILE2 $TEMPFILE7
 touch $TEMPFILE2 $TEMPFILE7
-while read REPO_PKG_XML_LINE ; do
-  REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%name=*}"} | \
-cut -d'=' -f2|cut -d' ' -f1`
-  echo $REPO_PKG_NAME >> $TEMPFILE2
-done < "$DBDIR$REPO_RAW_PKGS"
-sort -u $TEMPFILE2 > $TEMPFILE3
-while read REPO_PACKAGE_LINE ; do
-  # Clear array
-  unset PKG_FILES
-  PKG_FILE_IX=0
-  PKG_HANDLED="N"
-  PKG_FILE_NO=0
-  # Find all versions of this package in the repo, store them in $TEMPFILE2
-  grep "$REPO_PACKAGE_LINE " $DBDIR$REPO_RAW_PKGS 2>/dev/null > $TEMPFILE2
+if [[ ! $REPO_EMPTY ]] ; then
   while read REPO_PKG_XML_LINE ; do
-    REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%name=*}"} \
-|cut -d'=' -f2|cut -d' ' -f1`
-    if [[ $REPO_PKG_NAME = $REPO_PACKAGE_LINE ]] ; then
-      REPO_PKG_VER=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%ver=*}"} \
-|cut -d'=' -f2|cut -d' ' -f1`
-      REPO_PKG_REL=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%rel=*}"} \
-|cut -d'=' -f2|cut -d'/' -f1`
-      # Split up the version part of the version string to make it comparable
-      split_version_string $REPO_PKG_VER 1
-      REPO_PKG_VER_SPLIT=$SPLIT_VER_STRING
-      split_version_string $REPO_PKG_REL 1
-      REPO_PKG_REL_SPLIT=$SPLIT_VER_STRING
-      PKG_FILES[$PKG_FILE_IX]="$REPO_PKG_NAME $REPO_PKG_VER $REPO_PKG_REL \
-$REPO"#"$REPO_PKG_VER_SPLIT"#"$REPO_PKG_REL_SPLIT"
-      ((PKG_FILE_IX++))
-    fi
-  done < "$TEMPFILE2"
-  find_newest_repo_pkg
-  echo "  Added `echo $LATEST_PKG_FILE_LINE | cut -d'#' -f1|cut -d' ' -f1-2`\
--`echo $LATEST_PKG_FILE_LINE | cut -d'#' -f1|cut -d' ' -f3`"
-  echo $LATEST_PKG_FILE_LINE >> $TEMPFILE7
-done < "$TEMPFILE3" 
-cp $TEMPFILE7 $DBDIR$REPO_CURRENT_PKGS
+    REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%name=*}"} | \
+  cut -d'=' -f2|cut -d' ' -f1`
+    echo $REPO_PKG_NAME >> $TEMPFILE2
+  done < "$DBDIR$REPO_RAW_PKGS"
+  sort -u $TEMPFILE2 > $TEMPFILE3
+  while read REPO_PACKAGE_LINE ; do
+    # Clear array
+    unset PKG_FILES
+    PKG_FILE_IX=0
+    PKG_HANDLED="N"
+    PKG_FILE_NO=0
+    # Find all versions of this package in the repo, store them in $TEMPFILE2
+    grep "$REPO_PACKAGE_LINE " $DBDIR$REPO_RAW_PKGS 2>/dev/null > $TEMPFILE2
+    while read REPO_PKG_XML_LINE ; do
+      REPO_PKG_NAME=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%name=*}"} \
+  |cut -d'=' -f2|cut -d' ' -f1`
+      if [[ $REPO_PKG_NAME = $REPO_PACKAGE_LINE ]] ; then
+        REPO_PKG_VER=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%ver=*}"} \
+  |cut -d'=' -f2|cut -d' ' -f1`
+        REPO_PKG_REL=`echo ${REPO_PKG_XML_LINE#"${REPO_PKG_XML_LINE%%rel=*}"} \
+  |cut -d'=' -f2|cut -d'/' -f1`
+        # Split up the version part of the version string to make it comparable
+        split_version_string $REPO_PKG_VER 1
+        REPO_PKG_VER_SPLIT=$SPLIT_VER_STRING
+        split_version_string $REPO_PKG_REL 1
+        REPO_PKG_REL_SPLIT=$SPLIT_VER_STRING
+        PKG_FILES[$PKG_FILE_IX]="$REPO_PKG_NAME $REPO_PKG_VER $REPO_PKG_REL \
+  $REPO"#"$REPO_PKG_VER_SPLIT"#"$REPO_PKG_REL_SPLIT"
+        ((PKG_FILE_IX++))
+      fi
+    done < "$TEMPFILE2"
+    find_newest_repo_pkg
+    echo "  Adding $REPO_PKG_NAME $LATEST_PKG_FILE_VER_FULL"
+    echo $LATEST_PKG_FILE_LINE >> $TEMPFILE7
+  done < "$TEMPFILE3" 
+  cp $TEMPFILE7 $DBDIR$REPO_CURRENT_PKGS
+fi
 }
 
 sle12_repo_product_setup () {

@@ -2308,7 +2308,7 @@ $REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
         fi
       elif `echo $REPO_TO_FIX|grep -qi extended-sec` ; then
           get_repodata $REAL_REPOBASE$SCC_BASE"Updates/SLE-SERVER/"\
-"12-SP5-LTSS-Extended-Security/"$REPO_ARCH"/update/repodata/" \
+"12-SP5-LTSS-Extended-Security/"$REPO_TO_FIX_ARCH"/update/repodata/" \
 $REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
       elif $(echo $REPO_TO_FIX|grep -qE "SLES") && \
          $(echo $REPO_TO_FIX|grep -qE "12|15|16") ||

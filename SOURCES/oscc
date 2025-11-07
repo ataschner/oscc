@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-SCRIPT_VER="0.3-0.10"
+SCRIPT_VER="0.4-0.1"
 # Analyze if the system in a supportconfig archive is up to date
 # with the currently available versions of installed packages
 # 
@@ -220,6 +220,7 @@ SUPPORTED_ARCHS="i586 x86_64"
 
 # Supported products
 S_PRODUCTS="\
+SLES16.0 \
 SLES15SP7 \
 MOD_BASESYSTEM15SP7 MOD_CERT15SP7 MOD_CLOUD15SP7 MOD_CONT15SP7 MOD_DESKTOP15SP7 \
 MOD_DEV_TOOLS15SP7 MOD_HPC15SP7 MOD_LEGACY15SP7 MOD_PYTHON315SP7 \
@@ -278,6 +279,12 @@ L_PRODUCTS="SLES15SP5 SLES15SP4 SLES15SP3 SLES15SP2 SLES15SP1 SLES15 \
 SLES12SP5 SLES12SP4 \
 SLES11SP4"
 read -a LTSS_PRODUCTS <<< $L_PRODUCTS
+
+# Supported SLES 16 repos
+SLE16_REPOS="\
+SLE-Product-SLES-16.0"
+
+read -a SUPPORTED_SLE16_REPOS <<< $SLE16_REPOS
 
 # Supported SLE 15 repos
 SLE15_REPOS="\
@@ -614,10 +621,14 @@ LTS_REPOS="$SCC_LTS_REPOS $RCE_LTS_REPOS"
 read -a LTSS_REPOS <<< $LTS_REPOS
 
 # Repos in SUSE directory structure 
-SCC_REPOS="$SCC_LTS_REPOS $SLE15_REPOS $SLE12_REPOS"
+SCC_REPOS="$SCC_LTS_REPOS $SLE16_REPOS $SLE15_REPOS $SLE12_REPOS"
 
 # Repos in legacy $RCE directory structure 
 RCE_REPOS="$RCE_LTS_REPOS $SLE11_REPOS"
+
+# Supported SLE 16 architectures
+SLE16_ARCHS="x86_64"
+read -a SUPPORTED_SLE16_ARCHS <<< $SLE16_ARCHS
 
 # Supported SLE 15 architectures
 SLE15_ARCHS="x86_64"
@@ -684,7 +695,6 @@ NCC_REPOBASE="https://nu.novell.com/repo/"
 SCC_REPOBASE="https://updates.suse.com/"
 DBDIR=/opt/oscc/
 FILELISTS_XML=filelists.xml
-FILELISTS_XML_ARCHV=$FILELISTS_XML".gz"
 ENVFILE=basic-environment.txt
 HWFILE=hardware.txt
 UPDATESFILE=updates.txt
@@ -719,6 +729,27 @@ if [ -r $CONFFILE ]; then
       echo "Please ensure it is set"
       cleanup 2
     fi 
+  fi
+  # SLE 16
+  if [[ $SLE16_REPOS ]] ; then
+    # Validate if the user set repos are supported
+    read -a ENABLED_SLE16_REPOS <<< $SLE16_REPOS
+    if validate_enabled_array repository ENABLED_SLE16_REPOS \
+SUPPORTED_SLE16REPOS ; then
+      SLE16_REPOS=(${ENABLED_SLE16_REPOS[@]})
+    fi
+  else
+    SLE16_REPOS=(${SUPPORTED_SLE16_REPOS[@]})
+  fi
+  if [[ $SLE16_ARCHS ]] ; then
+    # Validate if the user set architectures are supported
+    read -a ENABLED_SLE16_ARCHS <<< $SLE16_ARCHS
+    if validate_enabled_array architecture ENABLED_SLE16_ARCHS \
+SUPPORTED_SLE16_ARCHS ; then
+      SLE16_ARCHS=(${ENABLED_SLE16_ARCHS[@]})
+    fi
+  else
+    SLE16_ARCHS=(${SUPPORTED_SLE16_ARCHS[@]})
   fi
   # SLE 15
   if [[ $SLE15_REPOS ]] ; then
@@ -943,12 +974,16 @@ echo -e "\nReport file : $REPORTFILE\n"
 }
 
 get_sp_string () {
-if [[ $1 -eq 0 ]] ; then
-  # If servicepack # zero - drop the #
-  unset SP_STRING
+if [ $BASE_PRODUCT_VER -ge 16 ] ; then 
+  SP_STRING="."$1
 else
-  # Otherwise prepend it with SP
-  SP_STRING="SP"$1
+  if [[ $1 -eq 0 ]] ; then
+    # If servicepack # zero - drop the #
+    unset SP_STRING
+  else
+    # Otherwise prepend it with SP
+    SP_STRING="SP"$1
+  fi
 fi
 }
 
@@ -1133,10 +1168,15 @@ case $RELEASE_FILE in
     else
       BASE_PRODUCT_SP=0
     fi
-    if [ $BASE_PRODUCT_SP -gt 0 ] ; then 
-      BASE_PRODUCT_LONG="SUSE Linux Enterprise Server $BASE_PRODUCT_VER SP$BASE_PRODUCT_SP"
+    
+    if [ $BASE_PRODUCT_VER -ge 16 ] ; then 
+      BASE_PRODUCT_LONG="SUSE Linux Enterprise Server $BASE_PRODUCT_VER.$BASE_PRODUCT_SP"
     else
-      BASE_PRODUCT_LONG="SUSE Linux Enterprise Server $BASE_PRODUCT_VER"
+      if [ $BASE_PRODUCT_SP -gt 0 ] ; then 
+        BASE_PRODUCT_LONG="SUSE Linux Enterprise Server $BASE_PRODUCT_VER SP$BASE_PRODUCT_SP"
+      else
+        BASE_PRODUCT_LONG="SUSE Linux Enterprise Server $BASE_PRODUCT_VER"
+      fi
     fi
 esac
 if [[ `echo $BASE_PRODUCT_LONG|grep Server 2>/dev/null` ]]; then
@@ -1255,8 +1295,13 @@ cut -d'.' -f1`
             add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
 "#"$PRODUCT_LONG"#"$PRODUCT$PRODUCT_VER$SP_STRING"
           else
-            add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
+#            if [ $PRODUCT_VER -ge 16 ] ; then 
+#              add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
+#"#"$PRODUCT_LONG $BASE_PRODUCT_VER"halo."$PRODUCT_SP"#"$PRODUCT$PRODUCT_VER$SP_STRING"
+#            else
+              add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
 "#"$PRODUCT_LONG $BASE_PRODUCT_VER $SP_STRING"#"$PRODUCT$PRODUCT_VER$SP_STRING"
+#            fi
           fi
         fi
       done < "$TEMPFILE1"
@@ -1269,7 +1314,7 @@ else
   echo "Check zypper setup on $HOSTNAME"
 fi
 # Handle out-of-product installations of public cloud module packages
-if ! `echo ${PRODUCTS[*]}|grep -q MOD_CLOUD` && grep -qE 'cloud-init|python3-brotlipy' rpm.txt ; then
+if ! `echo ${PRODUCTS[*]}|grep -q MOD_CLOUD` && grep -qE 'cloud-init|python3-brotlipy' rpm.txt && [ $BASE_PRODUCT_VER -lt 16 ]; then
   echo "Public Cloud Module packages are installed, but the module extension is not."
   echo "Adding the module"
   if [ $BASE_PRODUCT_VER -gt 12 ] ; then
@@ -1297,7 +1342,7 @@ $BASE_PRODUCT_ARCH"#Container Module "$BASE_PRODUCT_VER"#MOD_CONT"$BASE_PRODUCT_
   fi
 fi
 # Handle some situations where MOD_BASESYSTEM and MOD_SRV_APPS are not marked as installed on 15
-if [ $BASE_PRODUCT = "SLES" ] && [[ $BASE_PRODUCT_VER -ge 15 ]] ; then
+if [ $BASE_PRODUCT = "SLES" ] && [[ $BASE_PRODUCT_VER -eq 15 ]] ; then
   get_sp_string $BASE_PRODUCT_SP
   if ! `echo ${PRODUCTS[*]}|grep -q MOD_BASESYSTEM`  ; then
     add_product "MOD_BASESYSTEM#"$BASE_PRODUCT_VER"#$BASE_PRODUCT_SP#"\
@@ -1383,14 +1428,20 @@ unpack_repodata_setup () {
 # Arguments :
 # $1 : path/filename to output to
 cp $FILELISTS_XML_ARCHV $FILELISTS_XML_ARCHV".tmp" 
-if ! gunzip -f $FILELISTS_XML_ARCHV ; then
+if echo $FILELISTS_XML_ARCHV |grep -qi '.zst' ; then
+  # SLES 16 repodata is compressed with zstd instead of gzip
+  DECOMPRESS_CMD='zstd -dq' 
+else
+  DECOMPRESS_CMD='gunzip -f' 
+fi
+if ! eval ${DECOMPRESS_CMD} $FILELISTS_XML_ARCHV ; then
   echo "Error unpacking repodata file $REPO_URL$FILELISTS_XML_ARCHV"
   echo "Probably due to inconsistent metadata"
   echo "Exiting"
   cleanup 1
 fi
 mv $FILELISTS_XML $1
-mv $FILELISTS_XML_ARCHV".tmp" $1".gz"
+mv $FILELISTS_XML_ARCHV".tmp" $1"."$UPSTREAM_FILELISTS_XML_ARCHV_FMT
 }
 
 repo_access_error () {
@@ -1454,7 +1505,7 @@ case $REPO_PROTO in
   http|https)
     if [[ `$CURLCMD -sL -w "%{http_code}\\n" "$REPO_URL"repomd.xml \
           -o $TEMPFILE2` -eq 200 ]] ; then
-      if ! grep -q "filelists.xml.gz" $TEMPFILE2 ; then
+      if ! grep -q "filelists.xml" $TEMPFILE2 ; then
         REPO_IS_EMPTY=Y 
       fi
       get_filelists_info
@@ -1464,7 +1515,7 @@ case $REPO_PROTO in
     ;;
   local|nfs)
     if cp -p "$REPO_URL"repomd.xml $TEMPFILE2 > /dev/null 2>&1 ; then
-      if ! grep -q "filelists.xml.gz" "$REPO_URL"repomd.xml ; then
+      if ! grep -q "filelists.xml" "$REPO_URL"repomd.xml ; then
         REPO_IS_EMPTY=Y 
       fi
       get_filelists_info
@@ -1476,15 +1527,25 @@ check_for_hollow_repodata
 }
 
 get_filelists_info () {
-# In SLE 12 the filelists.xml.gz is prepended with its sha256 checksum
-# Since there may be multiple instances of *-filelists.xml.gz we have to 
+# In SLE 12 the filelists.xml.* is prepended with its sha256 checksum
+# Since there may be multiple instances of *-filelists.xml.* we have to 
 # derive the current one from repomd.xml
 unset UPSTREAM_FILELISTS_XML_ARCHV
 UPSTREAM_FILELISTS_XML_ARCHV=`cat $TEMPFILE2 \
-  |xmllint --format - |grep filelists.xml.gz \
+  |xmllint --format - |grep filelists.xml \
   |grep -o 'repodata[^\n]*' |cut -d'/' -f2|tr -d '"'`
+if echo $UPSTREAM_FILELISTS_XML_ARCHV |grep -q 'gz' ; then 
+  UPSTREAM_FILELISTS_XML_ARCHV_FMT=gz
+elif echo $UPSTREAM_FILELISTS_XML_ARCHV |grep -q 'zst' ; then 
+  UPSTREAM_FILELISTS_XML_ARCHV_FMT=zst
+else 
+  echo $UPSTREAM_FILELISTS_XML_ARCHV" is in to me unknown format."
+  echo "Exiting"
+  cleanup 1
+fi 
+FILELISTS_XML_ARCHV=$FILELISTS_XML"."$UPSTREAM_FILELISTS_XML_ARCHV_FMT
 UPSTREAM_REPODATA_MTS=`cat $TEMPFILE2 |xmllint --format - \
-  |sed -n '/filelists.xml.gz/,/data/p' \
+  |sed -n '/filelists.xml/,/data/p' \
   |grep timestamp |cut -d'>' -f2|cut -d'<' -f1`
 if ! [ $UPSTREAM_FILELISTS_XML_ARCHV ] ; then
   REPO_IS_EMPTY=Y
@@ -1572,6 +1633,14 @@ fi
 
 }
 
+detect_tarball_format () {
+if echo $REPO |grep -qi 16 ; then 
+  FILELISTS_ARCHV_FMT=zst
+else 
+  FILELISTS_ARCHV_FMT=gz
+fi
+}
+
 get_repodata () {
 # Fetch and validate the repodata of a repository
 REPO_URL=$1
@@ -1579,11 +1648,12 @@ REPO=$2
 REPO_ARCH=$3
 REPO_FILELIST_OUT=$4
 MY_REPODATA_MTS=0
+detect_tarball_format
 unset REPO_HAS_BEEN_RECREATED REPO_SP_STRING
 if ! [ $REPO_BROKEN ] ; then
   if [ $MAINT_MODE ] ; then
     for REPO_FILE in $DBDIR$REPO_CURRENT_PKGS $DBDIR$REPO_RAW_PKGS $DBDIR\
-$REPO_FILELIST_GZ ; do
+$REPO_FILELIST_ARCHV ; do
       if ! is_file_there $REPO_FILE && [ ! $REPO_HAS_BEEN_RECREATED] ; then
         REPO_BROKEN=y
         if ! [ $NEW_LTSS_REPO_CACHE ] && ! [[ $MAINT_FLAG == "w" ]] \
@@ -1601,7 +1671,7 @@ $REPO_FILELIST_GZ ; do
     done
   else
     for REPO_FILE in $DBDIR$REPO_CURRENT_PKGS $DBDIR$REPO_RAW_PKGS $DBDIR\
-$REPO_FILELIST_GZ ; do
+$REPO_FILELIST_ARCHV ; do
       if ! is_file_there $REPO_FILE ; then
         if [[ `echo $REPO_CURRENT_PKGS|grep LTSS 2>/dev/null` ]]; then 
           NEW_LTSS_REPO_CACHE=y   
@@ -1622,7 +1692,7 @@ $REPO_FILELIST_GZ ; do
   fi
 fi
 if [ ! $REPO_HAS_BEEN_RECREATED ] && [ ! $REPO_BROKEN ] ; then
-  MY_REPODATA_MTS_RAW=$(curl -s -I file://$DBDIR$REPO_FILELIST_GZ \
+  MY_REPODATA_MTS_RAW=$(curl -s -I file://$DBDIR$REPO_FILELIST_ARCHV \
     |grep ^Last-Modi|cut -d',' -f2|cut -d' ' -f2-)
   # Make modification time comparable/epoch
   MY_REPODATA_MTS=$(date -d "$MY_REPODATA_MTS_RAW" +"%s")
@@ -1707,16 +1777,17 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
   else
     unset ARCH_SHOW
   fi
+  detect_tarball_format
   if echo $REPO|grep -qi 'manager-tools' ; then
     # SLE Manager Tools is SP agnostic and missing version in repo name 
     REPO_PRODUCT_MAJ_VER=`echo ${REPOS[$REPO_IX]}|cut -d' ' -f4`
     REPO_FILELIST=$REPO"_"$ARCH"_"$FILELISTS_XML
-    REPO_FILELIST_GZ=$REPO_FILELIST".gz"
+    REPO_FILELIST_ARCHV=$REPO_FILELIST"."$FILELISTS_ARCHV_FMT
     REPO_RAW_PKGS=$REPO"_"$ARCH"_raw-pkgs"
     REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
   else
     REPO_FILELIST=$REPO"_"$ARCH"_"$FILELISTS_XML
-    REPO_FILELIST_GZ=$REPO_FILELIST".gz"
+    REPO_FILELIST_ARCHV=$REPO_FILELIST"."$FILELISTS_ARCHV_FMT
     REPO_RAW_PKGS=$REPO"_"$ARCH"_raw-pkgs"
     REPO_CURRENT_PKGS=$REPO"_"$ARCH"_current-pkgs"
   fi
@@ -1729,7 +1800,7 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
   else
     echo $REPO $ARCH_SHOW
     # Fetch and validate the repodata of this repository
-   if echo $REPO|grep -Eqi '12|15' || echo $REPO|grep -qi 'manager-tools' ; then
+    if echo $REPO|grep -Eqi '12|15' || echo $REPO|grep -qi 'manager-tools' ; then
       if echo $REPO|grep -qi 'manager-tools' ; then
         # SLE Manager Tools is SP agnostic and missing version in repo name 
         if `echo $REPO|grep -qi pool` ; then
@@ -1744,7 +1815,10 @@ for ((REPO_IX=0; REPO_IX < ${#REPOS[*]} ; REPO_IX++)) ; do
           get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
         fi
       fi
-    else
+   elif echo $REPO|grep -q '16' ; then
+     # SLES 16 - only pool
+     get_repodata "$REPO_URL" "$REPO" "$ARCH" "$REPO_FILELIST"_new""
+   else
       get_repodata "$REAL_REPOBASE$SCC_BASE$REPO"/"$ARCH"/repodata/"" "$REPO" \
 "$ARCH" "$REPO_FILELIST"_new""
     fi
@@ -1851,7 +1925,7 @@ grep " $REPO_PKG_NAME ") ]]; then
         mv -f $REPO_CURRENT_PKGS"_new" $DBDIR$REPO_CURRENT_PKGS
       fi
       mv -f $REPO_FILELIST_OUT $DBDIR$REPO_FILELIST
-      mv -f $REPO_FILELIST_OUT".gz" $DBDIR$REPO_FILELIST_GZ
+      mv -f $REPO_FILELIST_OUT".gz" $DBDIR$REPO_FILELIST_ARCHV
       mv -f $REPO_RAW_PKGS"_new" $DBDIR$REPO_RAW_PKGS
     fi
   fi
@@ -2113,24 +2187,49 @@ else
 fi
 }
 
+sle16_repo_product_setup () {
+# Preliminary product detection for SLE 16
+# Arguments : $1 is the repository name string
+SCC_BASE="SUSE/"
+if `echo $1|grep -q SLES` ; then
+    REPO_PRODUCT="SLE-Product-SLES"
+elif `echo $1|grep -q "HA"` ; then
+  REPO_PRODUCT="SLE-Product-HA"
+elif `echo $1|grep -qiE "PKGHUB|packagehub"` ; then
+  REPO_PRODUCT="SUSE-Package-Hub"
+else
+  echo "Error in product setup"
+  cleanup 1
+fi
+if [[ ! $REPO_SP_STRING ]] ; then
+  REPO_SP_STRING="."$(echo $1 | sed 's/.*\(16\)/\1/'|cut -d. -f2)
+fi
+if echo $1|grep -q 'LTSS' ; then
+  REPO_SP_STRING=$REPO_SP_STRING"-LTSS"
+fi
+}
+
 recreate_repo () {
 # Validate arguments
 if [ -n "$REPO_TO_FIX_ARG" ] ; then
   REPO_TO_FIX=$(echo $REPO_TO_FIX_ARG|cut -d' ' -f1|tr -d ' ')
   REPO=$REPO_TO_FIX
   get_scc_base $REPO
-  if [[ $(echo ${SLE15_REPOS[*]} | grep $REPO_TO_FIX) || \
+  if [[ $(echo ${SLE16_REPOS[*]} | grep $REPO_TO_FIX) || \
+        $(echo ${SLE15_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SLE12_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${SLE11_REPOS[*]} | grep $REPO_TO_FIX) || \
         $(echo ${LTSS_REPOS[*]} | grep $REPO_TO_FIX) ]] ; then
     REPO_TO_FIX_ARCH=$(echo $REPO_TO_FIX_ARG|cut -d' ' -f2|tr -d ' ')
     if [ -n "$REPO_TO_FIX_ARCH" ] ; then
-      if ! [[ $(echo ${SLE15_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
+      if ! [[ $(echo ${SLE16_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
+              $(echo ${SLE15_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
               $(echo ${SLE12_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) || \
               $(echo ${SLE11_ARCHS[*]} | grep $REPO_TO_FIX_ARCH) ]]; then
         echo -e "\nError : Invalid/unsupported architecture \
 ($REPO_TO_FIX_ARCH) specified"
         echo "Supported architectures are :"
+        echo ${SLE16_ARCHS[*]}
         echo ${SLE15_ARCHS[*]}
         echo ${SLE12_ARCHS[*]}
         echo ${SLE11_ARCHS[*]}
@@ -2158,12 +2257,17 @@ if [ -n "$REPO_TO_FIX_ARG" ] ; then
       if `echo $REPO_TO_FIX|grep -qi package-hub` ||
          `echo $REPO_TO_FIX|grep -qi packagehub` ; then
         # Just run sle12_repo_product_setup () to get $REPO_SP_STRING set
-        if  $(echo $REPO_TO_FIX|grep -qE "12") ; then
-          PRODUCT_VER=12
-        else
-          PRODUCT_VER=15
-        fi
+        if $(echo $REPO_TO_FIX|grep -q "12|15") ; then
+          if $(echo $REPO_TO_FIX|grep -q "12") ; then
+            PRODUCT_VER=12
+          else 
+            PRODUCT_VER=15
+          fi
         sle12_repo_product_setup $REPO_TO_FIX
+        elif $(echo $REPO_TO_FIX|grep -q "16") ; then
+          PRODUCT_VER=16
+          sle16_repo_product_setup $REPO_TO_FIX
+        fi
         # SUSE Package Hub needs special treatment
         if `echo $REPO_TO_FIX|grep -qi standard-pool` ||
            `echo $REPO_TO_FIX|grep -qi backports-pool`; then
@@ -2205,25 +2309,34 @@ $REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
 "12-SP5-LTSS-Extended-Security/"$REPO_ARCH"/update/repodata/" \
 $REPO_TO_FIX $REPO_TO_FIX_ARCH "$DBDIR$REPO_FILELIST"
       elif $(echo $REPO_TO_FIX|grep -qE "SLES") && \
-         $(echo $REPO_TO_FIX|grep -qE "12|15") ||
+         $(echo $REPO_TO_FIX|grep -qE "12|15|16") ||
          $(echo $REPO_TO_FIX|grep -qE "SLE-") && \
-         $(echo $REPO_TO_FIX|grep -qE "12|15") ; then
+         $(echo $REPO_TO_FIX|grep -qE "12|15|16") ; then
         THIS_IS_SLE12=y
-        if  $(echo $REPO_TO_FIX|grep -qE "12") ; then
+        if $(echo $REPO_TO_FIX|grep -qE "12") ; then
           PRODUCT_VER=12
-        else
+          sle12_repo_product_setup $REPO_TO_FIX
+        elif $(echo $REPO_TO_FIX|grep -qE "15") ; then
           PRODUCT_VER=15
+          sle12_repo_product_setup $REPO_TO_FIX
+        else
+          PRODUCT_VER=16
+          sle16_repo_product_setup $REPO_TO_FIX
         fi
-        sle12_repo_product_setup $REPO_TO_FIX
-            if `echo $REPO_TO_FIX|grep -qi pool` ; then
-              get_repodata $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+        if `echo $REPO_TO_FIX|grep -qi pool` ; then
+          get_repodata $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
 $PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/product/repodata/" \
 "$REPO_TO_FIX" "$REPO_TO_FIX_ARCH" "$DBDIR$REPO_FILELIST"
-            elif `echo $REPO|grep -qi updates` ; then
-              get_repodata $REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
+        elif `echo $REPO|grep -qi updates` ; then
+          get_repodata $REAL_REPOBASE$SCC_BASE"Updates/"$REPO_PRODUCT"/"\
 $PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/update/repodata/" \
 "$REPO_TO_FIX" "$REPO_TO_FIX_ARCH" "$DBDIR$REPO_FILELIST"
-            fi
+        elif `echo $REPO_TO_FIX|grep -q 16` ; then
+     # SLES 16 - only pool
+     get_repodata $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$REPO_SP_STRING"/"$REPO_TO_FIX_ARCH"/product/repodata/" \
+"$REPO_TO_FIX" "$REPO_TO_FIX_ARCH" "$DBDIR$REPO_FILELIST"
+        fi
       else
         # Pre SLE 12
         get_repodata "$REAL_REPOBASE"\$RCE/"$REPO_TO_FIX"/"$REPO_TO_FIX_ARCH\
@@ -2354,14 +2467,19 @@ for ((PRODUCTS_IX=0; PRODUCTS_IX < ${#PRODUCTS[*]}; PRODUCTS_IX++)) ; do
   # New top level directory from SCC in $MirrorTo on update servers
   # Handle inconsistency in whether SP is mentioned in products database
   unset REPO_SP_STRING REPOLIST
-  if [[ `echo $PRODUCT_LONG|grep SP` ]] ; then
-    PRODUCT_LONG_WO_SP=`echo $PRODUCT_LONG|sed 's/ SP.//g'`
+  if [[ $PRODUCT_VER -lt 16 ]] ; then
+    if [[ `echo $PRODUCT_LONG|grep SP` ]] ; then
+      PRODUCT_LONG_WO_SP=`echo $PRODUCT_LONG|sed 's/ SP.//g'`
+    else
+      PRODUCT_LONG_WO_SP=$PRODUCT_LONG
+    fi
+    if [[ $PRODUCT_SP -ne 0 ]] ; then
+      REPO_SP_STRING="-SP"$PRODUCT_SP
+    fi
   else
-    PRODUCT_LONG_WO_SP=$PRODUCT_LONG
-  fi
-  if [[ $PRODUCT_SP -ne 0 ]] ; then
-    REPO_SP_STRING="-SP"$PRODUCT_SP
-  fi
+    # SLES 16 has no Service Packs, but rather standard minor versions
+    :
+  fi  
   if [[ $PRODUCT == "EXT_SEC" ]] ; then
     NICE_PROD_NAME="$PRODUCT_LONG_WO_SP"
   else
@@ -2389,7 +2507,7 @@ $REPO_SP_STRING
                         UPDATES_REPO="SLE-"$PRODUCT$PRODUCT_VER$REPO_SP_STRING\
 "-Updates"
                         sle12_repo_product_setup $PRODUCT
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Product-HA"$PRODUCT_VER$REPO_SP_STRING\
 "-Pool"
                         UPDATES_REPO="SLE-Product-HA"\
@@ -2399,16 +2517,19 @@ $PRODUCT_VER$REPO_SP_STRING"-Updates"
                         REPO_PRODUCT="SLE"$PRODUCT_VER"-"$PRODUCT
                       fi
     ;;
-
     SLES            ) REPO_PRODUCT_FULL=$PRODUCT$PRODUCT_VER$REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
                         POOL_REPO="SLES"$PRODUCT_VER$REPO_SP_STRING"-Pool"
                         UPDATES_REPO="SLES"$PRODUCT_VER$REPO_SP_STRING"-Updates"
                         sle12_repo_product_setup $PRODUCT
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Product-SLES"$PRODUCT_VER$REPO_SP_STRING"-Pool"
                         UPDATES_REPO="SLE-Product-SLES"$PRODUCT_VER$REPO_SP_STRING"-Updates"
                         sle12_repo_product_setup $PRODUCT
+                      elif [[ $PRODUCT_VER -ge 16 ]] ; then
+                        # SLES 16 only has one repo
+                        UPDATES_REPO="SLE-Product-SLES-"$PRODUCT_VER"."$PRODUCT_SP
+                        sle16_repo_product_setup $PRODUCT
                       else
                         REPO_PRODUCT=$PRODUCT
                       fi
@@ -2430,7 +2551,7 @@ $PRODUCT_VER$REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
                         POOL_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER"-Pool"
                         UPDATES_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER"-Updates"
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER$REPO_SP_STRING"-Pool"
                         UPDATES_REPO="SLE-Module-CAP-Tools"$PRODUCT_VER$REPO_SP_STRING"-Updates"
                       fi
@@ -2442,7 +2563,7 @@ $PRODUCT_VER$REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
                         POOL_REPO="SLE-Module-Certifications12-Pool"
                         UPDATES_REPO="SLE-Module-Certifications12-Updates"
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Module-Certifications-"$PRODUCT_VER$REPO_SP_STRING"-Pool"
                         UPDATES_REPO="SLE-Module-Certifications-"$PRODUCT_VER$REPO_SP_STRING"-Updates"
                       fi
@@ -2453,7 +2574,7 @@ $PRODUCT_VER$REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
                         POOL_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Pool"
                         UPDATES_REPO="SLE-Module-Public-Cloud$PRODUCT_VER-Updates"
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Module-Public-Cloud"$PRODUCT_VER$REPO_SP_STRING"-Pool"
                         UPDATES_REPO="SLE-Module-Public-Cloud"$PRODUCT_VER$REPO_SP_STRING"-Updates"
                       fi
@@ -2464,7 +2585,7 @@ $PRODUCT_VER$REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
                         POOL_REPO="SLE-Module-Containers$PRODUCT_VER-Pool"
                         UPDATES_REPO="SLE-Module-Containers$PRODUCT_VER-Updates"
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Pool"
                         UPDATES_REPO="SLE-Module-Containers$PRODUCT_VER$REPO_SP_STRING-Updates"
                       fi
@@ -2487,7 +2608,7 @@ $PRODUCT_VER$REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
                         POOL_REPO="SLE-Module-HPC12-Pool"
                         UPDATES_REPO="SLE-Module-HPC12-Updates"
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Module-HPC$PRODUCT_VER$REPO_SP_STRING-Pool"
                         UPDATES_REPO="SLE-Module-HPC$PRODUCT_VER$REPO_SP_STRING-Updates"
                       fi
@@ -2498,7 +2619,7 @@ $PRODUCT_VER$REPO_SP_STRING
                       if [[ $PRODUCT_VER -eq 12 ]] ; then
                         POOL_REPO="SLE-Module-Legacy$PRODUCT_VER-Pool"
                         UPDATES_REPO="SLE-Module-Legacy$PRODUCT_VER-Updates"
-                      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+                      elif [[ $PRODUCT_VER -eq 15 ]] ; then
                         POOL_REPO="SLE-Module-Legacy$PRODUCT_VER$REPO_SP_STRING-Pool"
                         UPDATES_REPO="SLE-Module-Legacy$PRODUCT_VER$REPO_SP_STRING-Updates"
                       fi
@@ -2589,14 +2710,16 @@ $REPO_SP_STRING
   case $PRODUCT_VER in 
     11 ) REPO_ARCH="sle-"$PRODUCT_VER"-"$PRODUCT_ARCH
     ;;
-    6|7|8|9|12|15 ) REPO_ARCH=$PRODUCT_ARCH
+    6|7|8|9|12|15|16 ) REPO_ARCH=$PRODUCT_ARCH
   esac
   case $PRODUCT in 
   SLES ) 
     if [[ $PRODUCT_VER -eq 11 ]] && [[ $PRODUCT_SP -eq 4 ]] ; then
         REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -ge 12 ]] ; then
+    elif [[ $PRODUCT_VER -eq 12 ]] || [[ $PRODUCT_VER -eq 15 ]] ; then
       REPOLIST="$POOL_REPO $UPDATES_REPO"
+    elif [[ $PRODUCT_VER -eq 16 ]] ; then
+      REPOLIST="$UPDATES_REPO"
     fi
     ;;
   MOD_*|SLEMGRTOOL*)
@@ -2609,7 +2732,7 @@ $REPO_SP_STRING
       REPOLIST="SUSE-PackageHub-$PRODUCT_VER$REPO_SP_STRING-Pool \
 SUSE-PackageHub-$PRODUCT_VER$REPO_SP_STRING-Standard-Pool"
     fi
-    if [[ $PRODUCT_VER -ge 15 ]] ; then
+    if [[ $PRODUCT_VER -eq 15 ]] ; then
       # SLE 15+ - tag along the subpackages
       REPOLIST="\
 SUSE-PackageHub-$PRODUCT_VER$REPO_SP_STRING-Pool \
@@ -2645,7 +2768,7 @@ SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Updates"
   esac
   for REPO in $REPOLIST ; do 
     get_scc_base $REPO
-    if [[ $PRODUCT_VER -ge 12 ]] ; then
+    if [[ $PRODUCT_VER -ge 12 ]] && [[ $PRODUCT_VER -le 15 ]] ; then
       if `echo $REPO|grep -qi package-hub` ||
          `echo $REPO|grep -qi packagehub` ; then
         # SUSE Package Hub needs special treatment
@@ -2679,7 +2802,7 @@ $REPO $REPO_ARCH $PRODUCT_VER
         add_repo $REAL_REPOBASE$SCC_BASE"Updates/SLE-SERVER/"\
 "12-SP5-LTSS-Extended-Security/"$REPO_ARCH"/update/repodata/" \
 $REPO $REPO_ARCH $PRODUCT_VER
-      else
+      else 
         if `echo $REPO|grep -qi pool` ; then
           add_repo $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
 $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
@@ -2688,6 +2811,9 @@ $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $P
 $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
         fi
       fi
+    elif `echo $REPO|grep -qi 'SLE\-Product\-SLES\-16'` ; then
+      add_repo $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$"."$PRODUCT_SP"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
     else
       add_repo $REAL_REPOBASE$SCC_BASE$REPO"/"$REPO_ARCH"/repodata/" \
 $REPO $REPO_ARCH $PRODUCT_VER
@@ -2700,7 +2826,7 @@ $REPO $REPO_ARCH $PRODUCT_VER
       if [[ $PRODUCT_VER -eq 12 ]] ; then
         LTSS_REPO_URL=$REAL_REPOBASE$SCC_BASE"Updates/SLE-SERVER/"\
 $PRODUCT_VER$REPO_SP_STRING-LTSS"/"$REPO_ARCH"/update/repodata/"
-      elif [[ $PRODUCT_VER -ge 15 ]] ; then
+      elif [[ $PRODUCT_VER -eq 15 ]] ; then
         LTSS_REPO_URL=$REAL_REPOBASE$SCC_BASE"Updates/SLE-Product-SLES/"\
 $PRODUCT_VER$REPO_SP_STRING-LTSS"/"$REPO_ARCH"/update/repodata/"
       else
@@ -2724,19 +2850,6 @@ $REPO_ARCH $PRODUCT_VER
   fi
 done
 push_output "0" ""
-}
-
-unpack_repodata () {
-# Unpack and rename $FILELISTS_XML_ARCHV for a repository
-if ! gunzip -f $FILELISTS_XML_ARCHV ; then
-  echo "Error unpacking repodata file $REPO_URL$FILELISTS_XML_ARCHV"
-  echo "Probably due to inconsistent metadata"
-  echo "Exiting"
-  cleanup 1
-fi
-mv $FILELISTS_XML $REPO"_"$FILELISTS_XML
-REPODATA[$REPODATA_IX]=$REPO"_"$FILELISTS_XML
-((REPODATA_IX++))
 }
 
 stuff_multiversion_pkg_into_array () {
@@ -2778,9 +2891,15 @@ DISTRO_END_POS=$VERSION_START_POS
 DISTRO_START_POS=`grep -A1 'rpm -qa --queryformat \"\%-35{NAME' rpm.txt \
   |tail -1|grep -b -o DISTRIBUTION |cut -d':' -f1`
 ((DISTRO_START_POS++))
+# Distribution string in RPM database changed in SLES 16
+if [ $BASE_PRODUCT_VER -eq 16 ] ; then
+  DISTRO_STRING='SUSE Linux 16'
+else
+  DISTRO_STRING='SUSE Linux Enterprise '$BASE_PRODUCT_VER
+fi
 sed -n '/rpm -qa --queryformat \"\%-35{NAME/,/^$/p' rpm.txt \
   |grep -Ev '^NAME|^$' \
-  |grep "SUSE Linux Enterprise $BASE_PRODUCT_VER" > $TEMPFILE1
+  |grep "$DISTRO_STRING" > $TEMPFILE1
 # Since supportutils may have different distro flag, it needs a special check
 # Check if we have supportutils from this SLE version
 WRONG_SUPPORTUTILS_LINE=`grep 'supportutils' $TEMPFILE1 2>/dev/null \

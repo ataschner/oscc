@@ -268,6 +268,7 @@ MOD_CERT12 MOD_HPC12 MOD_CAP12 \
 PKGHUB12SP4 PKGHUB12SP5 \
 SLES11SP4 \
 SDK12SP5 SDK12SP4 \
+HA16.0 \
 HA15SP7 HA15SP6 HA15SP5 HA15SP4 HA15SP3 HA15SP2 HA15SP1 HA15 HA12SP5 HA12SP4 \
 WE15 WE15SP1 WE15SP2 WE15SP3 WE15SP4 WE15SP5 WE15SP6 WE15SP7 \
 WE12SP5 WE12SP4 \
@@ -282,7 +283,8 @@ read -a LTSS_PRODUCTS <<< $L_PRODUCTS
 
 # Supported SLES 16 repos
 SLE16_REPOS="\
-SLE-Product-SLES-16.0"
+SLE-Product-SLES-16.0 \
+SLE-Product-HA-16.0"
 
 read -a SUPPORTED_SLE16_REPOS <<< $SLE16_REPOS
 
@@ -1295,13 +1297,13 @@ cut -d'.' -f1`
             add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
 "#"$PRODUCT_LONG"#"$PRODUCT$PRODUCT_VER$SP_STRING"
           else
-#            if [ $PRODUCT_VER -ge 16 ] ; then 
-#              add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
-#"#"$PRODUCT_LONG $BASE_PRODUCT_VER"halo."$PRODUCT_SP"#"$PRODUCT$PRODUCT_VER$SP_STRING"
-#            else
+            if [ $PRODUCT_VER -ge 16 ] ; then 
+              add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
+"#"$PRODUCT_LONG $BASE_PRODUCT_VER"."$PRODUCT_SP"#"$PRODUCT$PRODUCT_VER$SP_STRING"
+            else
               add_product "$PRODUCT"#"$PRODUCT_VER"#"$PRODUCT_SP"#"$PRODUCT_ARCH\
 "#"$PRODUCT_LONG $BASE_PRODUCT_VER $SP_STRING"#"$PRODUCT$PRODUCT_VER$SP_STRING"
-#            fi
+            fi
           fi
         fi
       done < "$TEMPFILE1"
@@ -2192,7 +2194,7 @@ sle16_repo_product_setup () {
 # Arguments : $1 is the repository name string
 SCC_BASE="SUSE/"
 if `echo $1|grep -q SLES` ; then
-    REPO_PRODUCT="SLE-Product-SLES"
+  REPO_PRODUCT="SLE-Product-SLES"
 elif `echo $1|grep -q "HA"` ; then
   REPO_PRODUCT="SLE-Product-HA"
 elif `echo $1|grep -qiE "PKGHUB|packagehub"` ; then
@@ -2513,6 +2515,10 @@ $REPO_SP_STRING
                         UPDATES_REPO="SLE-Product-HA"\
 $PRODUCT_VER$REPO_SP_STRING"-Updates"
                         sle12_repo_product_setup $PRODUCT
+                        elif [[ $PRODUCT_VER -ge 16 ]] ; then
+                        # SLES 16 only has one repo
+                        UPDATES_REPO="SLE-Product-HA-"$PRODUCT_VER"."$PRODUCT_SP
+                        sle16_repo_product_setup $PRODUCT
                       else
                         REPO_PRODUCT="SLE"$PRODUCT_VER"-"$PRODUCT
                       fi
@@ -2744,8 +2750,10 @@ SLE-Module-Packagehub-Subpackages$PRODUCT_VER$REPO_SP_STRING-Updates"
   HA*|WE ) 
     if [[ $PRODUCT_VER -eq 11 && $PRODUCT_SP -ge 1 ]] ; then
       REPOLIST="$REPO_PRODUCT_FULL"-Pool" $REPO_PRODUCT_FULL"-Updates""
-    elif [[ $PRODUCT_VER -ge 12 ]] ; then
+    elif [[ $PRODUCT_VER -eq 12 ]] || [[ $PRODUCT_VER -eq 15 ]] ; then
       REPOLIST="$POOL_REPO $UPDATES_REPO"
+    elif [[ $PRODUCT_VER -eq 16 ]] ; then
+      REPOLIST="$UPDATES_REPO"
     fi
     ;;
   SDK  ) 
@@ -2812,6 +2820,9 @@ $PRODUCT_VER$REPO_SP_STRING"/"$REPO_ARCH"/update/repodata/" $REPO $REPO_ARCH $PR
         fi
       fi
     elif `echo $REPO|grep -qi 'SLE\-Product\-SLES\-16'` ; then
+      add_repo $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
+$PRODUCT_VER$"."$PRODUCT_SP"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
+    elif `echo $REPO|grep -qi 'SLE\-Product\-HA\-16'` ; then
       add_repo $REAL_REPOBASE$SCC_BASE"Products/"$REPO_PRODUCT"/"\
 $PRODUCT_VER$"."$PRODUCT_SP"/"$REPO_ARCH"/product/repodata/" $REPO $REPO_ARCH $PRODUCT_VER
     else

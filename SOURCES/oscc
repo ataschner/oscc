@@ -2259,7 +2259,7 @@ if [ -n "$REPO_TO_FIX_ARG" ] ; then
       if `echo $REPO_TO_FIX|grep -qi package-hub` ||
          `echo $REPO_TO_FIX|grep -qi packagehub` ; then
         # Just run sle12_repo_product_setup () to get $REPO_SP_STRING set
-        if $(echo $REPO_TO_FIX|grep -q "12|15") ; then
+        if $(echo $REPO_TO_FIX|grep -qE "12|15") ; then
           if $(echo $REPO_TO_FIX|grep -q "12") ; then
             PRODUCT_VER=12
           else 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-SCRIPT_VER="0.4-0.1"
+SCRIPT_VER="0.4.1"
 # Analyze if the system in a supportconfig archive is up to date
 # with the currently available versions of installed packages
 # 

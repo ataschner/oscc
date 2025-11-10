@@ -1,8 +1,8 @@
 # norootforbuild
 
 Name:         oscc 
-Version:      0.3
-Release:      0.10
+Version:      0.4
+Release:      1
 BuildRequires: bash
 %define _prefix  /opt/gnome
 License:      GPL
@@ -71,6 +71,48 @@ chmod 664 %{_repodir}/*
 rm -rf %{_repodir}
 
 %changelog
+* Mon Nov 11 2025 - Andreas Taschner <ataschner@suse.com
+- Version 0.4.1
+  - Updated RPM with refreshed repository hash and multiple 
+    commits since previous release.
+  - Changed to semantic version scheme (257f4a98b)
+  - Minor bug in recreate_repo for SUSE PackageHub fixed
+    (c89bbd74)
+  - Past'o in recreate_repo () for SLES 12 SP5 LTSS
+    Extended Security fixed (390784f8)
+  - Added support for SLES HA 16.0 (ceaf9c49)
+  - Added support for SUSE Linux Enterprise Server 16.0.
+    SLE 16 only has a single Product repo for each
+    product instead of Pool and Updates (b6d90b4c)
+  - Enable support for SLES 12 SP5 LTSS Extended Security
+    (48fdf94)
+  - For 15 SP6 and SP7 the following are now enabled :
+    - High Availability Extension
+    - Workstation Extension (c9ed1412)
+  - Systems Management Module was added to SLES 15 SP6 and SP7
+    for hosting newer ansible and salt packages. 
+    See TID 000021807.
+    cbdf4099 erroneously reverted d84ed91b (REPO_EMPTY) 
+    (d42dc215)
+  - Support for SLE 15 SP7 (cbdf4099)
+  - Fix variable name glitch in c1122a32 (d84ed91b)
+  - Improve handling of empty repositories (c1122a32)
+  - Filter our source RPMs (af357c33)
+  - Generation of SLE-Manager-Tools-Updates15 fixed (673e856b)
+  - Enable SLES 12 SP5 LTSS Extended Security (76366de8)
+  - SLES 12 SP5 and 15 SP5 are now in LTSS (6a5fb131)
+  - Discontinue SLE 12 SP3 (7c9c0a96)
+  - Discontinue more SLE 11 EOL products (ea1087f7)
+  - Support for SLE 15 SP6 (385bf2ba)
+  - Discontinue EOL products
+    SLE 12, 12 SP1 and SP2 are out of LTSS.
+    Remove support for corresponding products. (dd0de61d)
+  - SLES 15 SP4 is now in LTSS (77865dec)
+  - Add dependency on xmllint (ccc3a052)
+    We now need xmllint to handle ugly repodata XML.
+  - Handle unformatted repodata XML (0a792c94)
+  - Support gzip compressed tarballs (63c67209)
+  
 * Wed Aug 23 2023 - Andreas Taschner <ataschner@suse.com>
 - Version 0.3-0.10
   - Support for SLE 15 SP5

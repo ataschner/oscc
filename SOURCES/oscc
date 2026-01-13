@@ -1331,7 +1331,7 @@ $BASE_PRODUCT_ARCH"#Public Cloud Module "$BASE_PRODUCT_VER"#MOD_CLOUD"$BASE_PROD
   fi
 fi
 # Handle out-of-product installations of container module packages
-if ! `echo ${PRODUCTS[*]}|grep -q MOD_CONT` && grep -q '^docker' rpm.txt ; then
+if ! `echo ${PRODUCTS[*]}|grep -q MOD_CONT` && grep -qE '^docker|^runc|^containerd|podman' rpm.txt ; then
   echo "Container Module packages are installed, but the module extension is not."
   echo "Adding the module"
   if [ $BASE_PRODUCT_VER -gt 12 ] ; then
